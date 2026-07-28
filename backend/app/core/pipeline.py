@@ -71,12 +71,37 @@ class Pipeline:
 
     async def _global_feed_worker(self):
         """Drip-feed global threats to WebSocket to avoid UI freeze"""
+        import random
         while self.is_running:
             try:
+                # If queue is empty, simulate a random attack from known malicious IPs
                 if self.global_feed_queue is None or self.global_feed_queue.empty():
-                    await asyncio.sleep(2)
+                    if threat_intel_service.malicious_ips:
+                        # Pick a random IP from cache to simulate ongoing attacks from known bad actors
+                        ip = random.choice(list(threat_intel_service.malicious_ips.keys()))
+                        meta = threat_intel_service.malicious_ips[ip]
+                        
+                        # Resolve GeoIP
+                        geo = geoip_service.lookup(ip)
+                        
+                        event = {
+                            "source_kind": "global_threat_feed",
+                            "source": geo,
+                            "severity": "high" if meta.get("confidence", 0) > 0.8 else "medium",
+                            "type": "malicious_ip",
+                            "timestamp": datetime.utcnow().isoformat() + "Z",
+                            "reported_by": meta.get("reported_by", "Unknown"),
+                            "confidence": meta.get("confidence", 1.0),
+                            "first_seen": meta.get("first_seen", ""),
+                            "malware_family": meta.get("malware_family", "Unknown"),
+                            "metadata": {"note": "Global Threat Feed (Simulated)"}
+                        }
+                        await self._throttle_and_broadcast(event)
+                    
+                    await asyncio.sleep(random.uniform(0.5, 2.0))
                     continue
                 
+                # Process actual queue if it has items
                 # Fetch up to 2 items per second
                 for _ in range(2):
                     if self.global_feed_queue.empty():
