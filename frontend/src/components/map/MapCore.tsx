@@ -94,10 +94,14 @@ export const MapCore = React.memo(({ events, activeLayers = [] }: { events: Thre
           background: transparent !important;
         }
         .cyan-glow {
-          filter: drop-shadow(0 0 5px #06b6d4) drop-shadow(0 0 10px #06b6d4);
+          filter: drop-shadow(0 0 6px #06b6d4);
+          will-change: filter;
+          transform: translateZ(0);
         }
         .purple-glow {
-          filter: drop-shadow(0 0 5px #c084fc) drop-shadow(0 0 10px #c084fc);
+          filter: drop-shadow(0 0 6px #c084fc);
+          will-change: filter;
+          transform: translateZ(0);
         }
         .custom-tooltip {
           background-color: transparent !important;

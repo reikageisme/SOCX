@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { Polyline, CircleMarker, Popup } from 'react-leaflet';
 import type { ThreatEvent } from './ThreatMapLayout';
 
-const getBezierCurve = (start: [number, number], end: [number, number], segments = 50) => {
+const getBezierCurve = (start: [number, number], end: [number, number], segments = 25) => {
   const [lat1, lng1] = start;
   const [lat2, lng2] = end;
   
@@ -59,27 +59,27 @@ export const AttackArc = React.memo(({ event, isPointOnly = false }: { event: Th
     <>
       {!isPointOnly && positions.length > 0 && (
         <>
-          {/* Base Arc - very thin */}
+          {/* Base Arc - very thin, STATIC glow */}
           <Polyline
             positions={positions}
             pathOptions={{
               color: color,
               weight: 2,
-              opacity: 0.4,
+              opacity: 0.3,
               className: 'arc-real-base ' + glowClass
             }}
           />
-          {/* Moving Particle */}
+          {/* Moving Particle - NO GLOW to prevent layout thrashing */}
           <Polyline
             positions={positions}
             pathOptions={{
-              color: '#ffffff', // Go back to white for a high-contrast core
-              weight: 3,
+              color: '#ffffff',
+              weight: 2.5,
               opacity: 1,
-              className: 'attack-particle ' + glowClass
+              className: 'attack-particle'
             }}
           />
-          {/* Glowing Target Dot */}
+          {/* Glowing Target Dot - NO GLOW on animation */}
           {event.dest && (
             <CircleMarker
               center={[event.dest.lat, event.dest.lng]}
@@ -90,7 +90,7 @@ export const AttackArc = React.memo(({ event, isPointOnly = false }: { event: Th
                 fillOpacity: 1,
                 weight: 1,
                 opacity: 1,
-                className: 'target-pulse-animation ' + glowClass
+                className: 'target-pulse-animation'
               }}
             />
           )}

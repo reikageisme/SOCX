@@ -47,8 +47,9 @@ body {
   stroke-dasharray: 2 500;
   stroke-dashoffset: 500;
   animation: particleDash 0.8s ease-in-out infinite;
-  filter: drop-shadow(0 0 8px currentColor);
   stroke-linecap: round;
+  will-change: stroke-dashoffset;
+  transform: translateZ(0);
 }
 
 @keyframes dash {
