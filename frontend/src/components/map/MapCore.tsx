@@ -62,6 +62,20 @@ export const MapCore = React.memo(({ events, activeLayers = [] }: { events: Thre
         className: 'custom-tooltip',
         direction: 'auto',
       });
+
+      layer.on({
+        mouseover: (e: any) => {
+          const l = e.target;
+          l.setStyle({
+            fillColor: '#06b6d4',
+            fillOpacity: 0.6
+          });
+        },
+        mouseout: (e: any) => {
+          const l = e.target;
+          l.setStyle(geoStyle);
+        }
+      });
     }
   };
 
@@ -86,16 +100,17 @@ export const MapCore = React.memo(({ events, activeLayers = [] }: { events: Thre
           filter: drop-shadow(0 0 5px #c084fc) drop-shadow(0 0 10px #c084fc);
         }
         .custom-tooltip {
-          background-color: rgba(10, 15, 29, 0.9) !important;
-          border: 1px solid rgba(6, 182, 212, 0.5) !important;
+          background-color: transparent !important;
+          border: none !important;
+          box-shadow: none !important;
           color: #fff !important;
-          font-weight: bold;
+          font-weight: 600;
+          font-size: 14px;
           font-family: 'Inter', sans-serif;
-          border-radius: 4px;
-          padding: 4px 8px;
+          text-shadow: 0 2px 4px rgba(0,0,0,0.8);
         }
         .custom-tooltip::before {
-          border-top-color: rgba(6, 182, 212, 0.5) !important;
+          display: none !important;
         }
       `}</style>
       <MapContainer 

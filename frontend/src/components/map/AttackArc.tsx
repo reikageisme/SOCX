@@ -1,7 +1,37 @@
 import React, { useMemo } from 'react';
 import { Polyline, CircleMarker, Popup } from 'react-leaflet';
-import { GreatCircle } from 'arc';
 import type { ThreatEvent } from './ThreatMapLayout';
+
+const getBezierCurve = (start: [number, number], end: [number, number], segments = 50) => {
+  const [lat1, lng1] = start;
+  const [lat2, lng2] = end;
+  
+  // Calculate midpoint
+  const midLat = (lat1 + lat2) / 2;
+  const midLng = (lng1 + lng2) / 2;
+  
+  // Calculate perpendicular vector for control point
+  const dx = lng2 - lng1;
+  const dy = lat2 - lat1;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  
+  // Offset scale (make it slightly curved, not a huge parabola)
+  const offset = Math.min(len * 0.1, 15);
+  
+  // Control point coordinates
+  const cpLat = midLat - (dx / len) * offset;
+  const cpLng = midLng + (dy / len) * offset;
+  
+  const points: [number, number][] = [];
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments;
+    const mt = 1 - t;
+    const lat = mt * mt * lat1 + 2 * mt * t * cpLat + t * t * lat2;
+    const lng = mt * mt * lng1 + 2 * mt * t * cpLng + t * t * lng2;
+    points.push([lat, lng]);
+  }
+  return points;
+};
 
 export const AttackArc = React.memo(({ event, isPointOnly = false }: { event: ThreatEvent, isPointOnly?: boolean }) => {
   // We use cyan and purple to match the Radware theme
@@ -15,13 +45,10 @@ export const AttackArc = React.memo(({ event, isPointOnly = false }: { event: Th
       if (!event.source?.lat || !event.source?.lng || !event.dest?.lat || !event.dest?.lng) {
         return [];
       }
-      // Generate arc points
-      const generator = new GreatCircle(
-        { x: event.source!.lng, y: event.source!.lat },
-        { x: event.dest!.lng, y: event.dest!.lat }
+      return getBezierCurve(
+        [event.source.lat, event.source.lng],
+        [event.dest.lat, event.dest.lng]
       );
-      const arcLine = generator.Arc(50);
-      return arcLine.geometries[0].coords.map((c: any) => [c[1], c[0]] as [number, number]);
     } catch (e) {
       console.error("Error generating arc:", e);
       return [];
