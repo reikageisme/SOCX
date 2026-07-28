@@ -11,9 +11,8 @@ const typeColors: Record<string, string> = {
   'SQL Injection': '#EAB308' // yellow
 };
 
-export const AttackArc = React.memo(({ event, isSimulated }: { event: ThreatEvent; isSimulated?: boolean }) => {
-  const baseColor = typeColors[event.type] || '#3B82F6';
-  const color = isSimulated ? '#4B5563' : baseColor; // muted gray for simulated
+export const AttackArc = React.memo(({ event }: { event: ThreatEvent }) => {
+  const color = typeColors[event.type] || '#3B82F6';
 
   const positions = useMemo(() => {
     try {
@@ -40,23 +39,21 @@ export const AttackArc = React.memo(({ event, isSimulated }: { event: ThreatEven
         positions={positions}
         pathOptions={{
           color: color,
-          weight: isSimulated ? 1 : 2,
-          opacity: isSimulated ? 0.3 : 0.8,
-          className: `${isSimulated ? 'arc-simulated-base' : 'arc-real-base'} attack-arc-fade`
+          weight: 2,
+          opacity: 0.8,
+          className: 'arc-real-base attack-arc-fade'
         }}
       />
       {/* Moving Particle */}
-      {!isSimulated && (
-        <Polyline
-          positions={positions}
-          pathOptions={{
-            color: color,
-            weight: 3,
-            opacity: 1,
-            className: 'attack-particle attack-arc-fade'
-          }}
-        />
-      )}
+      <Polyline
+        positions={positions}
+        pathOptions={{
+          color: color,
+          weight: 3,
+          opacity: 1,
+          className: 'attack-particle attack-arc-fade'
+        }}
+      />
       {event.dest && (
         <CircleMarker
           center={[event.dest.lat, event.dest.lng]}
@@ -65,8 +62,8 @@ export const AttackArc = React.memo(({ event, isSimulated }: { event: ThreatEven
             color: color,
             fillColor: 'transparent',
             weight: 2,
-            opacity: isSimulated ? 0.4 : 1,
-            className: isSimulated ? 'attack-arc-fade' : 'target-pulse-animation attack-arc-fade'
+            opacity: 1,
+            className: 'target-pulse-animation attack-arc-fade'
           }}
         />
       )}
@@ -76,7 +73,7 @@ export const AttackArc = React.memo(({ event, isSimulated }: { event: ThreatEven
         pathOptions={{
           color: color,
           fillColor: color,
-          fillOpacity: isSimulated ? 0.3 : 0.9,
+          fillOpacity: 0.9,
           stroke: false,
           className: 'attack-arc-fade'
         }}

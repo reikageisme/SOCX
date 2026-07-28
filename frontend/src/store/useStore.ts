@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 export interface ThreatEvent {
   id: string;
-  source_kind?: 'local_sensor' | 'global_threat_feed' | 'global_simulated';
+  source_kind?: 'local_sensor' | 'global_threat_feed';
   source: { lat: number; lng: number; country: string; query?: string };
   dest?: { lat: number; lng: number; country: string; query?: string };
   severity: 'low' | 'medium' | 'high';

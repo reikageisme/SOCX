@@ -37,10 +37,6 @@ const Legend = React.memo(() => {
           <div className="w-3 h-3 rounded-full border border-purple-500 bg-purple-500/30"></div>
           <span className="text-[10px] text-soc-muted uppercase">Global Intel Feed</span>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-0 border-t border-dashed border-gray-500 opacity-50"></div>
-          <span className="text-[10px] text-soc-muted uppercase">Simulated</span>
-        </div>
       </div>
     </div>
   );
@@ -63,20 +59,9 @@ const EventRenderer: React.FC<{ events: ThreatEvent[] }> = ({ events }) => {
         ))}
       </MarkerClusterGroup>
       
-      {arcEvents.map(event => {
-        /* PERF: SVG Rendering Limits & Canvas Evaluation
-            - SVG limit: ~300 nodes before noticeable layout thrashing.
-            - Current implementation uses React-Leaflet with SVG markers for easy CSS animations.
-            - If ACS scales beyond 50 events/sec or if max rendered events exceed 300:
-              1. Rewrite this component to use Leaflet.Canvas or react-leaflet-canvas-markers.
-              2. For extreme scale (>10k points), switch the map core entirely to deck.gl (WebGL).
-            - Do not switch to Canvas right now as CSS path animations (dash-offset) are required for AttackArc.
-        */
-        const isSimulated = event.source_kind === 'global_simulated';
-        // Hide simulated arcs at high zoom out (<= 2) to reduce visual noise
-        if (isSimulated && zoom <= 2) return null;
-        return <AttackArc key={event.id} event={event} isSimulated={isSimulated} />;
-      })}
+      {arcEvents.map(event => (
+        <AttackArc key={event.id} event={event} />
+      ))}
     </>
   );
 };

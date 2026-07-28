@@ -43,11 +43,6 @@ body {
   opacity: 0.6;
 }
 
-.arc-simulated-base {
-  stroke-dasharray: 4 12;
-  opacity: 0.3;
-}
-
 .attack-particle {
   stroke-dasharray: 2 500;
   stroke-dashoffset: 500;

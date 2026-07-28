@@ -46,7 +46,6 @@ from app.core.pipeline import pipeline
 from app.core.db import engine, Base
 from app.models.incident import Incident, ActionRequest
 from app.core.response.executor import playbook_executor
-from app.core.simulator import simulator
 
 @app.get("/api/v1/health")
 def health_check():
@@ -93,10 +92,6 @@ def get_data_sources_status():
             "status": threat_intel_service.last_pull_status,
             "total_cached_ips": len(threat_intel_service.malicious_ips),
             "description": "OTX + ThreatFox + AbuseIPDB threat intelligence"
-        },
-        "simulator": {
-            "is_running": simulator.is_running,
-            "description": "Visualization simulator for demo purposes (not real threats)"
         }
     }
 
@@ -269,11 +264,9 @@ async def startup_event():
     await geoip_service.initialize()
     pipeline.start()
     await threat_intel_service.initialize()
-    simulator.start()
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    simulator.stop()
     pipeline.stop()
     geoip_service.close()
 

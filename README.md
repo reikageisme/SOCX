@@ -1,3 +1,5 @@
+# ACE Cyber Security (ACS)
+
 **Internal network security monitoring platform — ACEDA Corp**
 
 > ⚠️ This is an internal tool for ACEDA's security operations team. Not for external distribution.
@@ -8,6 +10,7 @@
 - **Backend**: Python FastAPI + SQLite + APScheduler
 - **Agent**: eBPF-based network monitor (Linux only)
 - **Threat Intel**: OTX, ThreatFox, AbuseIPDB integration
+- **AI Engine**: Local Ollama (llama3:8b) with Gemini fallback
 
 ## Modules
 
@@ -15,31 +18,21 @@
 |--------|-------------|
 | Dashboard | System overview with real-time threat map widget |
 | Threat Map | Full-screen global attack visualization |
-| Rules | Sigma-like YAML detection rules with dry-run |
-| Logs | Audit log viewer with CSV export |
-| Settings | API key management and system configuration |
-| Incidents | SOAR-lite incident response with approval workflow |
+| Assets | Asset Inventory (Server tracking) |
+| Incidents | SOAR-lite incident response with Kanban workflow |
+| Rules | Sigma-like YAML detection rules |
+| Logs | Audit log viewer |
+| Settings | API key and AI Provider management |
 
-## Quick Start
+## Data Sources
+- **Local Sensor**: eBPF Agent monitoring real traffic.
+- **Global Intel**: Daily fetch from OTX/ThreatFox.
+*(Note: Visual simulator has been completely removed for production safety).*
 
-```bash
-cd backend
-pip install -r requirements.txt
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-```
+## Deployment
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
+Please refer to [DEPLOYMENT.md](DEPLOYMENT.md) for full instructions on deploying to Proxmox VE via Docker Compose.
 
 ## Credentials
 
 Default admin account: `tahnadmin`
-
-## Technical Notes
-
-- Engine codename: "Aegis SOC Engine" (internal reference only)
-- Detection rules stored in `backend/data/rules/*.yml`
-- GeoIP database auto-downloaded on first startup
