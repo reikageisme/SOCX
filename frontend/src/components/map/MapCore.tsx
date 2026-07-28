@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { MapContainer, GeoJSON, useMapEvent } from 'react-leaflet';
+import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { ThreatEvent } from './ThreatMapLayout';
 import { AttackArc } from './AttackArc';
@@ -39,6 +40,9 @@ const EventRenderer: React.FC<{ events: ThreatEvent[], activeLayers: string[] }>
 
 export const MapCore = React.memo(({ events, activeLayers = [] }: { events: ThreatEvent[], activeLayers?: string[] }) => {
   const [geoData, setGeoData] = useState<any>(null);
+  
+  // Use Canvas renderer for the massive GeoJSON to prevent SVG DOM lag
+  const canvasRenderer = useMemo(() => L.canvas({ padding: 0.5 }), []);
 
   useEffect(() => {
     fetch('/countries.geojson')
@@ -52,8 +56,9 @@ export const MapCore = React.memo(({ events, activeLayers = [] }: { events: Thre
     weight: 0.8,
     opacity: 0.5,
     color: '#06b6d4',
-    fillOpacity: 0.6
-  }), []);
+    fillOpacity: 0.6,
+    renderer: canvasRenderer
+  }), [canvasRenderer]);
 
   const onEachFeature = (feature: any, layer: any) => {
     if (feature.properties && feature.properties.ADMIN) {
