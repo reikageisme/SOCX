@@ -3,6 +3,7 @@ from app.models.incident import Incident, ActionRequest
 from app.core.response.playbook_manager import playbook_manager
 from app.core.response.audit_logger import audit_logger
 from app.core.db import SessionLocal
+from sqlalchemy.orm import Session
 import uuid
 import json
 
