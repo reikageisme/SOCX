@@ -1,0 +1,10 @@
+name: SSH Brute Force
+description: Detects multiple SSH auth failures from the same source
+condition: count > 5 within 5m
+selection:
+  type: malicious_ip
+  dest_port: 22
+mitre:
+  tactic: TA0006 # Credential Access
+  technique: T1110 # Brute Force
+severity: high

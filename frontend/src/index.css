@@ -1,0 +1,108 @@
+@import "tailwindcss";
+
+@theme {
+  --color-soc-dark: #0B0F19;
+  --color-soc-card: #151C2C;
+  --color-soc-accent: #3B82F6;
+  --color-soc-alert: #EF4444;
+  --color-soc-warning: #F59E0B;
+  --color-soc-success: #10B981;
+  --color-soc-text: #F3F4F6;
+  --color-soc-muted: #9CA3AF;
+}
+
+body {
+  @apply bg-soc-dark text-soc-text font-sans antialiased m-0 p-0;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-soc-dark;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-soc-card rounded;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-gray-600;
+}
+
+.attack-arc-animation {
+  stroke-dasharray: 4 12;
+  animation: dash 1.5s linear infinite;
+  opacity: 0.4;
+}
+
+.arc-real-base {
+  opacity: 0.6;
+}
+
+.arc-simulated-base {
+  stroke-dasharray: 4 12;
+  opacity: 0.3;
+}
+
+.attack-particle {
+  stroke-dasharray: 2 500;
+  stroke-dashoffset: 500;
+  animation: particleDash 0.8s ease-in-out infinite;
+  filter: drop-shadow(0 0 8px currentColor);
+  stroke-linecap: round;
+}
+
+@keyframes dash {
+  to {
+    stroke-dashoffset: -16;
+  }
+}
+
+@keyframes particleDash {
+  0% { stroke-dashoffset: 500; }
+  100% { stroke-dashoffset: 0; }
+}
+
+.target-pulse-animation {
+  animation: targetPulse 1.5s cubic-bezier(0.25, 0.8, 0.25, 1) infinite;
+  transform-origin: center;
+  fill: transparent;
+  stroke-width: 2;
+}
+
+@keyframes targetPulse {
+  0% { transform: scale(0.1); opacity: 1; stroke-width: 3; }
+  100% { transform: scale(4); opacity: 0; stroke-width: 0.5; }
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #374151;
+  border-radius: 4px;
+}
+
+.global-threat-pulse {
+  animation: targetPulse 2s ease-in-out infinite alternate;
+  transform-origin: center;
+}
+
+.attack-arc-fade {
+  animation: arcFadeOut 10s ease-in forwards;
+}
+
+@keyframes arcFadeOut {
+  0% { opacity: 1; }
+  70% { opacity: 0.8; }
+  100% { opacity: 0; }
+}

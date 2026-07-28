@@ -1,0 +1,12 @@
+name: Auto Block SSH Brute Force
+trigger:
+  incident_name: "SSH Brute Force"
+  min_severity: high
+actions:
+  - type: block_ip_temp
+    target: "{{ incident.source_ip }}"
+    duration: 15m
+    requires_approval: false
+  - type: isolate_vm
+    target: "{{ incident.dest_ip }}"
+    requires_approval: true

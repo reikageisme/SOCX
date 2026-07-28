@@ -1,0 +1,89 @@
+version: "3.8"
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: aegis_backend
+    restart: always
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env
+    networks:
+      - soc_network
+    volumes:
+      - ./backend/data:/app/data
+      - ./backend/aegis.db:/app/aegis.db
+    depends_on:
+      - redis
+      - clickhouse
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: aegis_frontend
+    restart: always
+    ports:
+      - "5173:80"
+    networks:
+      - soc_network
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  redis:
+    image: redis:7-alpine
+    container_name: aegis_redis
+    restart: always
+    expose:
+      - "6379"
+    networks:
+      - soc_network
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest-alpine
+    container_name: aegis_clickhouse
+    restart: always
+    expose:
+      - "8123"
+      - "9000"
+    networks:
+      - soc_network
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - clickhouse_logs:/var/log/clickhouse-server
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8123/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+# Lưu ý: eBPF Agent KHÔNG ĐƯỢC CHẠY trong docker-compose này nếu bạn dùng Mac/Windows,
+# hoặc nếu server này không phải là mục tiêu giám sát.
+# Agent nên được deploy riêng trên các máy chủ cần giám sát bằng lệnh:
+# docker run --privileged -v /sys/kernel/debug:/sys/kernel/debug:rw --net host aegis_agent
+
+networks:
+  soc_network:
+    driver: bridge
+
+volumes:
+  redis_data:
+  clickhouse_data:
+  clickhouse_logs:

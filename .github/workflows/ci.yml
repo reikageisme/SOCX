@@ -1,0 +1,44 @@
+name: Aegis SOC CI/CD
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.12"
+
+    - name: Install dependencies (Backend)
+      run: |
+        python -m pip install --upgrade pip
+        cd backend
+        pip install -r requirements.txt
+        pip install flake8 pytest
+
+    - name: Lint with flake8
+      run: |
+        cd backend
+        flake8 app/ --count --select=E9,F63,F7,F82 --show-source --statistics
+
+    - name: Build Backend Docker Image
+      run: |
+        cd backend
+        docker build -t aegis-backend:test .
+
+    - name: Build Frontend Docker Image
+      run: |
+        cd frontend
+        docker build -t aegis-frontend:test .
+
+    # Deploy step is deliberately omitted for security reasons.
+    # We do NOT want automatic deployment of privileged eBPF agents or core SOC infrastructure without manual approval.

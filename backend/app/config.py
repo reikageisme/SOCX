@@ -1,0 +1,37 @@
+from pydantic_settings import BaseSettings
+
+class Settings(BaseSettings):
+    PROJECT_NAME: str = "ACS Control Plane"
+    API_V1_STR: str = "/api/v1"
+    
+    # Proxmox VE Configuration
+    PROXMOX_HOST: str = "127.0.0.1"
+    PROXMOX_USER: str = "root@pam"
+    PROXMOX_TOKEN_ID: str = "aegis"
+    PROXMOX_TOKEN_SECRET: str = "your-token-secret-here"
+    PROXMOX_VERIFY_SSL: bool = False
+
+    # Security / JWT
+    SECRET_KEY: str = "a-very-secret-key-change-this-in-production"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440 # 24 hours
+
+    # Mock mode for local testing without real Proxmox
+    MOCK_PROXMOX: bool = False
+    INTERNAL_API_KEY: str = "aegis-dev-key"
+
+    # API Keys
+    OTX_API_KEY: str = ""
+    THREATFOX_API_KEY: str = ""
+    ABUSEIPDB_API_KEY: str = ""
+    MAXMIND_LICENSE_KEY: str = ""
+
+    # AI Configuration
+    AI_PROVIDER: str = "ollama"
+    OLLAMA_URL: str = "http://localhost:11434"
+    GEMINI_API_KEY: str = ""
+
+    class Config:
+        env_file = ".env"
+
+settings = Settings()
