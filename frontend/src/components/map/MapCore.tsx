@@ -18,6 +18,7 @@ const EventRenderer: React.FC<{ events: ThreatEvent[], activeLayers: string[] }>
 
   const visibleEvents = events.filter(e => {
     if (e.source.is_local) return false;
+    if (!activeLayers || activeLayers.length === 0) return true; // Show all if no layers specified (e.g. Dashboard)
     const layer = getEventLayer(e);
     return activeLayers.includes(layer);
   });
@@ -48,7 +49,7 @@ export const MapCore = React.memo(({ events, activeLayers = [] }: { events: Thre
       {/* Global CSS for cyan map filter and glowing effects */}
       <style>{`
         .radware-map-tiles {
-          filter: sepia(100%) hue-rotate(170deg) saturate(300%) brightness(50%) contrast(150%) invert(10%);
+          filter: sepia(100%) hue-rotate(180deg) saturate(200%) brightness(80%) contrast(120%) invert(10%);
         }
         .cyan-glow {
           filter: drop-shadow(0 0 5px #06b6d4) drop-shadow(0 0 10px #06b6d4);
