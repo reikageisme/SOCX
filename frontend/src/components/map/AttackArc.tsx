@@ -3,18 +3,14 @@ import { Polyline, CircleMarker, Popup } from 'react-leaflet';
 import { GreatCircle } from 'arc';
 import type { ThreatEvent } from './ThreatMapLayout';
 
-const typeColors: Record<string, string> = {
-  'Malware': '#EF4444',    // red
-  'Phishing': '#A855F7',   // purple
-  'Exploit': '#F97316',    // orange
-  'DDoS': '#3B82F6',       // blue
-  'SQL Injection': '#EAB308' // yellow
-};
-
-export const AttackArc = React.memo(({ event }: { event: ThreatEvent }) => {
-  const color = typeColors[event.type] || '#3B82F6';
+export const AttackArc = React.memo(({ event, isPointOnly = false }: { event: ThreatEvent, isPointOnly?: boolean }) => {
+  // We use cyan and purple to match the Radware theme
+  const isIntel = event.source_kind === 'global_threat_feed';
+  const color = isIntel ? '#c084fc' : '#06b6d4'; // Purple for intel, Cyan for local alerts
+  const glowClass = isIntel ? 'purple-glow' : 'cyan-glow';
 
   const positions = useMemo(() => {
+    if (isPointOnly) return [];
     try {
       if (!event.source?.lat || !event.source?.lng || !event.dest?.lat || !event.dest?.lng) {
         return [];
@@ -24,67 +20,82 @@ export const AttackArc = React.memo(({ event }: { event: ThreatEvent }) => {
         { x: event.source!.lng, y: event.source!.lat },
         { x: event.dest!.lng, y: event.dest!.lat }
       );
-      const arcLine = generator.Arc(50); // Lấy 50 điểm trên đường cong
+      const arcLine = generator.Arc(50);
       return arcLine.geometries[0].coords.map((c: any) => [c[1], c[0]] as [number, number]);
     } catch (e) {
-      console.error("Lỗi vẽ đường cong:", e);
+      console.error("Error generating arc:", e);
       return [];
     }
-  }, [event.source, event.dest]);
+  }, [event.source, event.dest, isPointOnly]);
 
   return (
     <>
-      {/* Base Arc */}
-      <Polyline
-        positions={positions}
-        pathOptions={{
-          color: color,
-          weight: 2,
-          opacity: 0.8,
-          className: 'arc-real-base attack-arc-fade'
-        }}
-      />
-      {/* Moving Particle */}
-      <Polyline
-        positions={positions}
-        pathOptions={{
-          color: color,
-          weight: 3,
-          opacity: 1,
-          className: 'attack-particle attack-arc-fade'
-        }}
-      />
-      {event.dest && (
-        <CircleMarker
-          center={[event.dest.lat, event.dest.lng]}
-          radius={8}
-          pathOptions={{
-            color: color,
-            fillColor: 'transparent',
-            weight: 2,
-            opacity: 1,
-            className: 'target-pulse-animation attack-arc-fade'
-          }}
-        />
+      {!isPointOnly && positions.length > 0 && (
+        <>
+          {/* Base Arc - very thin */}
+          <Polyline
+            positions={positions}
+            pathOptions={{
+              color: color,
+              weight: 1,
+              opacity: 0.3,
+              className: 'arc-real-base attack-arc-fade ' + glowClass
+            }}
+          />
+          {/* Moving Particle */}
+          <Polyline
+            positions={positions}
+            pathOptions={{
+              color: '#ffffff', // white core for the particle
+              weight: 2,
+              opacity: 1,
+              className: 'attack-particle attack-arc-fade ' + glowClass
+            }}
+          />
+          {/* Glowing Target Dot */}
+          {event.dest && (
+            <CircleMarker
+              center={[event.dest.lat, event.dest.lng]}
+              radius={3}
+              pathOptions={{
+                color: color,
+                fillColor: '#ffffff',
+                fillOpacity: 1,
+                weight: 1,
+                opacity: 1,
+                className: 'target-pulse-animation attack-arc-fade ' + glowClass
+              }}
+            />
+          )}
+        </>
       )}
+
+      {/* Source Dot */}
       <CircleMarker
         center={[event.source?.lat || 0, event.source?.lng || 0]}
-        radius={4}
+        radius={isPointOnly ? 4 : 2}
         pathOptions={{
           color: color,
-          fillColor: color,
-          fillOpacity: 0.9,
-          stroke: false,
-          className: 'attack-arc-fade'
+          fillColor: isPointOnly ? '#ffffff' : color,
+          fillOpacity: 0.8,
+          weight: 1,
+          stroke: isPointOnly,
+          className: 'attack-arc-fade ' + (isPointOnly ? 'target-pulse-animation ' + glowClass : '')
         }}
       >
         <Popup>
-          <div className="bg-slate-900 text-white p-2 text-sm rounded">
-            <strong>{event.source?.query || event.source?.country}</strong> 
+          <div className="bg-[#0a0f1d] text-white p-3 text-sm rounded border border-gray-700 shadow-xl font-inter">
+            <strong className="text-cyan-400">{event.source?.query || event.source?.country}</strong> 
+            {!isPointOnly && (
+              <>
+                <span className="text-gray-500 mx-2">&rarr;</span>
+                <strong className="text-white">{event.dest?.query || event.dest?.country || 'Local Server'}</strong>
+              </>
+            )}
             <br />
-            &rarr; {event.dest?.query || 'Local Server'}
-            <br />
-            <span className="text-teal-400 text-xs">{event.type}</span>
+            <span className="text-xs uppercase tracking-widest text-gray-400 mt-2 block border-t border-gray-800 pt-1">
+              {event.type}
+            </span>
           </div>
         </Popup>
       </CircleMarker>

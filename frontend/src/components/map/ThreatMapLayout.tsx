@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { HeaderStats } from './HeaderStats';
-import { AttackFeed } from './AttackFeed';
+import { LeftPanel } from './LeftPanel';
 import { StatsPanel } from './StatsPanel';
 import { MapCore } from './MapCore';
 import { useStore } from '../../store/useStore';
@@ -32,13 +32,17 @@ export const ThreatMapLayout: React.FC = () => {
   const [events, setEvents] = useState<ThreatEvent[]>([]);
   const { wsConnected, threatEvents: storeEvents } = useStore();
 
-  // Stats
   const [totalAttacks, setTotalAttacks] = useState(0);
   const [isStatsCollapsed, setIsStatsCollapsed] = useState(false);
+  const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
+  
+  // Active layers for map filtering
+  const [activeLayers, setActiveLayers] = useState<string[]>([
+    'malicious_ip', 'Phishing', 'Exploit', 'DDoS', 'SQL Injection'
+  ]);
 
   const receivedMap = useRef<Record<string, number>>({});
 
-  // Sync store events to local state and manage 100 max limit
   useEffect(() => {
     if (storeEvents.length > 0) {
       const now = Date.now();
@@ -49,11 +53,9 @@ export const ThreatMapLayout: React.FC = () => {
         return { ...e, _receivedAt: receivedMap.current[e.id] };
       });
       
-      // Filter out those already expired to prevent flashing
       setEvents(updatedEvents.filter(e => now - e._receivedAt! <= 10000));
-      setTotalAttacks(storeEvents.length); // Update total
+      setTotalAttacks(storeEvents.length);
 
-      // Cleanup receivedMap
       const storeIds = new Set(storeEvents.map(e => e.id));
       Object.keys(receivedMap.current).forEach(id => {
         if (!storeIds.has(id)) {
@@ -67,7 +69,6 @@ export const ThreatMapLayout: React.FC = () => {
     }
   }, [storeEvents]);
 
-  // Clean up old events every 2 seconds
   useEffect(() => {
     const interval = setInterval(() => {
       const now = Date.now();
@@ -77,26 +78,35 @@ export const ThreatMapLayout: React.FC = () => {
   }, []);
 
   return (
-    <div className="relative w-full h-[calc(100vh-64px)] -m-8 flex flex-col bg-soc-dark text-white overflow-hidden">
-      {/* Absolute positioning to cover the -m-8 padding offset from Layout.tsx */}
+    <div className="relative w-full h-[calc(100vh-64px)] -m-8 flex flex-col bg-[#0a0f1d] text-white overflow-hidden font-inter">
       <HeaderStats totalAttacks={totalAttacks} />
       
       <div className="flex flex-1 overflow-hidden relative">
-        <AttackFeed events={events} />
+        <LeftPanel 
+          events={events} 
+          activeLayers={activeLayers} 
+          setActiveLayers={setActiveLayers}
+          isCollapsed={isLeftCollapsed}
+          onToggle={() => setIsLeftCollapsed(!isLeftCollapsed)}
+        />
         
-        <div className="flex-1 relative">
+        <div className="flex-1 relative bg-[#050810]">
           {!wsConnected && (
-            <div className="absolute inset-0 z-[1000] flex items-center justify-center bg-soc-dark/80 backdrop-blur-sm">
+            <div className="absolute inset-0 z-[1000] flex items-center justify-center bg-[#0a0f1d]/80 backdrop-blur-sm">
               <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-soc-accent mx-auto mb-4"></div>
-                <p className="text-soc-text text-lg font-semibold">Reconnecting to Control Plane...</p>
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-500 mx-auto mb-4"></div>
+                <p className="text-cyan-400 text-lg font-semibold tracking-wider uppercase">Reconnecting to Control Plane...</p>
               </div>
             </div>
           )}
-          <MapCore events={events} />
+          <MapCore events={events} activeLayers={activeLayers} />
         </div>
 
-        <StatsPanel events={events} isCollapsed={isStatsCollapsed} onToggle={() => setIsStatsCollapsed(!isStatsCollapsed)} />
+        <StatsPanel 
+          events={events} 
+          isCollapsed={isStatsCollapsed} 
+          onToggle={() => setIsStatsCollapsed(!isStatsCollapsed)} 
+        />
       </div>
     </div>
   );
