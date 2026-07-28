@@ -23,8 +23,8 @@ RUN pip install --no-cache /wheels/*
 # Copy app code
 COPY . .
 
-# Set permissions
-RUN chown -R socuser:socuser /app
+# Set permissions and create data directory
+RUN mkdir -p /app/data && chown -R socuser:socuser /app
 USER socuser
 
 EXPOSE 8000
