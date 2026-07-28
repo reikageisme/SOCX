@@ -48,8 +48,8 @@ const EventRenderer: React.FC<{ events: ThreatEvent[] }> = ({ events }) => {
     setZoom(e.target.getZoom());
   });
 
-  const globalEvents = events.filter(e => e.source_kind === 'global_threat_feed');
-  const arcEvents = events.filter(e => e.source_kind !== 'global_threat_feed');
+  const globalEvents = events.filter(e => e.source_kind === 'global_threat_feed' && !e.source.is_local);
+  const arcEvents = events.filter(e => e.source_kind !== 'global_threat_feed' && !e.source.is_local);
 
   return (
     <>

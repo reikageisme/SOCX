@@ -92,10 +92,34 @@ class DetectionEngine:
             db.add(incident)
             db.commit()
             db.refresh(incident)
-            
-            # TODO: Trigger Response Playbook
+            # Trigger Response Playbook
             from app.core.response.executor import playbook_executor
-            playbook_executor.execute_for_incident(incident)
+            playbook_executor.execute_for_incident(incident, db)
+            
+            # BROADCAST NOTIFICATION TO WEBSOCKET
+            try:
+                from app.core.websockets import manager
+                import asyncio
+                import json
+                
+                notif_msg = {
+                    "type": "notification",
+                    "data": {
+                        "id": incident.id,
+                        "title": f"New Incident: {incident.title}",
+                        "severity": incident.severity,
+                        "timestamp": incident.created_at.isoformat() + "Z" if hasattr(incident, 'created_at') and incident.created_at else __import__('datetime').datetime.utcnow().isoformat() + "Z"
+                    }
+                }
+                
+                # Check if we are running in an active event loop
+                try:
+                    loop = asyncio.get_running_loop()
+                    loop.create_task(manager.broadcast(json.dumps(notif_msg)))
+                except RuntimeError:
+                    pass # Not in an async context, can't easily broadcast here without a loop
+            except Exception as wse:
+                logger.error(f"Failed to broadcast notification: {wse}")
             
         except Exception as e:
             logger.error(f"Failed to create incident: {e}")

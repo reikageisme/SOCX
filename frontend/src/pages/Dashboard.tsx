@@ -1,10 +1,11 @@
-import { useProxmoxNodes } from '../hooks/useProxmox';
+import { useProxmoxNodes, useDashboardMetrics } from '../hooks/useProxmox';
 import { useStore } from '../store/useStore';
 import { Server, Cpu, HardDrive, ShieldAlert, Activity } from 'lucide-react';
 import { DashboardMap } from '../components/map/DashboardMap';
 
 export const Dashboard = () => {
   const { data: proxmoxData, isLoading, isError } = useProxmoxNodes();
+  const { data: metricsData } = useDashboardMetrics();
   const threatEvents = useStore((state) => state.threatEvents);
 
   return (
@@ -29,7 +30,7 @@ export const Dashboard = () => {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-soc-muted text-sm font-medium mb-1">Active Alerts</p>
-              <h3 className="text-3xl font-bold text-white">{threatEvents.length}</h3>
+              <h3 className="text-3xl font-bold text-white">{metricsData?.active_alerts !== undefined ? metricsData.active_alerts : '-'}</h3>
             </div>
             <div className="p-3 bg-soc-alert/10 rounded-lg">
               <ShieldAlert className="w-6 h-6 text-soc-alert" />
@@ -42,7 +43,7 @@ export const Dashboard = () => {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-soc-muted text-sm font-medium mb-1">CPU Load</p>
-              <h3 className="text-3xl font-bold text-white">24%</h3>
+              <h3 className="text-3xl font-bold text-white">{metricsData?.cpu_load_percent !== undefined ? `${metricsData.cpu_load_percent}%` : '-'}</h3>
             </div>
             <div className="p-3 bg-soc-success/10 rounded-lg">
               <Cpu className="w-6 h-6 text-soc-success" />
@@ -54,8 +55,8 @@ export const Dashboard = () => {
           <div className="absolute top-0 right-0 w-32 h-32 bg-soc-warning/5 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-110"></div>
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-soc-muted text-sm font-medium mb-1">Storage IOPS</p>
-              <h3 className="text-3xl font-bold text-white">4.2k</h3>
+              <p className="text-soc-muted text-sm font-medium mb-1">Cluster Storage</p>
+              <h3 className="text-3xl font-bold text-white">{metricsData?.storage_usage_percent !== undefined ? `${metricsData.storage_usage_percent}%` : '-'}</h3>
             </div>
             <div className="p-3 bg-soc-warning/10 rounded-lg">
               <HardDrive className="w-6 h-6 text-soc-warning" />

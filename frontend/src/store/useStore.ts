@@ -3,8 +3,8 @@ import { create } from 'zustand';
 export interface ThreatEvent {
   id: string;
   source_kind?: 'local_sensor' | 'global_threat_feed';
-  source: { lat: number; lng: number; country: string; query?: string };
-  dest?: { lat: number; lng: number; country: string; query?: string };
+  source: { lat: number; lng: number; country: string; query?: string; is_local?: boolean };
+  dest?: { lat: number; lng: number; country: string; query?: string; is_local?: boolean };
   severity: 'low' | 'medium' | 'high';
   type: string;
   timestamp: string;
@@ -15,6 +15,14 @@ export interface ThreatEvent {
   metadata?: any;
 }
 
+export interface AppNotification {
+  id: string;
+  title: string;
+  severity: string;
+  timestamp: string;
+  read: boolean;
+}
+
 interface SocState {
   token: string | null;
   setToken: (token: string | null) => void;
@@ -23,6 +31,9 @@ interface SocState {
   threatEvents: ThreatEvent[];
   addThreatEvent: (event: ThreatEvent) => void;
   addThreatEvents: (events: ThreatEvent[]) => void;
+  notifications: AppNotification[];
+  addNotification: (notif: AppNotification) => void;
+  markAllNotificationsRead: () => void;
 }
 
 export const useStore = create<SocState>((set) => ({
@@ -40,5 +51,12 @@ export const useStore = create<SocState>((set) => ({
   })),
   addThreatEvents: (events) => set((state) => ({
     threatEvents: [...events, ...state.threatEvents].slice(0, 150)
+  })),
+  notifications: [],
+  addNotification: (notif) => set((state) => ({
+    notifications: [notif, ...state.notifications].slice(0, 50)
+  })),
+  markAllNotificationsRead: () => set((state) => ({
+    notifications: state.notifications.map(n => ({ ...n, read: true }))
   })),
 }));

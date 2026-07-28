@@ -92,3 +92,45 @@ async def receive_network_event(event: NetworkEvent):
     }
     await pipeline.enqueue_event(internal_event)
     return {"status": "success"}
+
+@router.get("/system/dashboard-metrics")
+def get_dashboard_metrics():
+    from app.core.db import SessionLocal
+    from app.models.incident import Incident
+    
+    # Get active incidents
+    db = SessionLocal()
+    try:
+        active_incidents = db.query(Incident).filter(Incident.status.in_(["open", "investigating"])).count()
+    except:
+        active_incidents = 0
+    finally:
+        db.close()
+        
+    # Get proxmox cluster info for CPU/Storage
+    try:
+        nodes = proxmox_service.get_nodes()
+        total_cpu = 0
+        total_max_cpu = 0
+        total_disk = 0
+        total_max_disk = 0
+        
+        for node in nodes:
+            if node.get("status") == "online":
+                total_cpu += node.get("cpu", 0) * node.get("maxcpu", 1)
+                total_max_cpu += node.get("maxcpu", 1)
+                total_disk += node.get("disk", 0)
+                total_max_disk += node.get("maxdisk", 1)
+                
+        cpu_load = (total_cpu / total_max_cpu * 100) if total_max_cpu > 0 else 0
+        storage_usage = (total_disk / total_max_disk * 100) if total_max_disk > 0 else 0
+    except Exception as e:
+        cpu_load = 0
+        storage_usage = 0
+        
+    return {
+        "active_alerts": active_incidents,
+        "cpu_load_percent": round(cpu_load, 1),
+        "storage_usage_percent": round(storage_usage, 1)
+    }
+

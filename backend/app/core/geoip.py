@@ -67,24 +67,25 @@ class GeoIPService:
 
     def lookup(self, ip_address: str):
         if not self.reader:
-            return {"lat": 0.0, "lng": 0.0, "country": "Unknown"}
+            return {"lat": 0.0, "lng": 0.0, "country": "Unknown", "is_local": False}
             
         try:
             # Skip lookup for local IPs
             if ip_address.startswith("10.") or ip_address.startswith("192.168.") or ip_address.startswith("127.") or ip_address.startswith("172."):
-                return {"lat": 0.0, "lng": 0.0, "country": "Local Network"}
+                return {"lat": 0.0, "lng": 0.0, "country": "Local Network", "is_local": True}
 
             response = self.reader.city(ip_address)
             return {
                 "lat": response.location.latitude or 0.0,
                 "lng": response.location.longitude or 0.0,
-                "country": response.country.iso_code or "Unknown"
+                "country": response.country.iso_code or "Unknown",
+                "is_local": False
             }
         except AddressNotFoundError:
-            return {"lat": 0.0, "lng": 0.0, "country": "Unknown"}
+            return {"lat": 0.0, "lng": 0.0, "country": "Unknown", "is_local": False}
         except Exception as e:
             logger.error(f"GeoIP Lookup error for {ip_address}: {e}")
-            return {"lat": 0.0, "lng": 0.0, "country": "Error"}
+            return {"lat": 0.0, "lng": 0.0, "country": "Error", "is_local": False}
 
     def close(self):
         if self.reader:

@@ -8,6 +8,10 @@ export const Header = () => {
   const setToken = useStore((state) => state.setToken);
   const navigate = useNavigate();
   
+  const notifications = useStore((state) => state.notifications);
+  const markAllNotificationsRead = useStore((state) => state.markAllNotificationsRead);
+  const unreadCount = notifications.filter(n => !n.read).length;
+
   const [showNotif, setShowNotif] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [iocQuery, setIocQuery] = useState('');
@@ -78,33 +82,51 @@ export const Header = () => {
             className={`relative p-2 rounded-full transition-colors ${showNotif ? 'bg-gray-800 text-white' : 'text-soc-muted hover:text-white hover:bg-gray-800/50'}`}
           >
             <Bell className="w-5 h-5" />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-soc-alert rounded-full border border-soc-dark animate-pulse"></span>
+            <span className={`absolute top-1 right-1 w-2 h-2 rounded-full border border-soc-dark ${unreadCount > 0 ? 'bg-soc-alert animate-pulse' : 'hidden'}`}></span>
           </button>
           
           {showNotif && (
             <div className="absolute right-0 mt-3 w-80 bg-soc-card border border-gray-700 rounded-xl shadow-2xl py-2 z-50 animate-fade-in origin-top-right">
-              <div className="px-4 py-2 border-b border-gray-800">
-                <h3 className="font-semibold text-white">Notifications</h3>
+              <div className="px-4 py-2 border-b border-gray-800 flex justify-between items-center">
+                <h3 className="font-semibold text-white">Notifications {unreadCount > 0 && `(${unreadCount})`}</h3>
               </div>
               <div className="max-h-64 overflow-y-auto">
-                <div className="px-4 py-3 hover:bg-gray-800/50 cursor-pointer flex gap-3 transition-colors">
-                  <div className="mt-1"><AlertTriangle size={16} className="text-soc-alert" /></div>
-                  <div>
-                    <p className="text-sm text-gray-200">New SSH Brute Force detected</p>
-                    <p className="text-xs text-gray-500 mt-1">2 mins ago</p>
+                {notifications.length === 0 ? (
+                  <div className="px-4 py-6 text-center text-sm text-soc-muted">
+                    No notifications
                   </div>
-                </div>
-                <div className="px-4 py-3 hover:bg-gray-800/50 cursor-pointer flex gap-3 transition-colors border-t border-gray-800/50">
-                  <div className="mt-1"><ShieldCheck size={16} className="text-soc-success" /></div>
-                  <div>
-                    <p className="text-sm text-gray-200">Threat Intel rules updated</p>
-                    <p className="text-xs text-gray-500 mt-1">1 hour ago</p>
-                  </div>
-                </div>
+                ) : (
+                  notifications.map((notif, idx) => (
+                    <div 
+                      key={notif.id || idx} 
+                      onClick={() => { navigate('/incidents'); setShowNotif(false); }}
+                      className={`px-4 py-3 hover:bg-gray-800/50 cursor-pointer flex gap-3 transition-colors ${idx > 0 ? 'border-t border-gray-800/50' : ''} ${!notif.read ? 'bg-gray-800/30' : ''}`}
+                    >
+                      <div className="mt-1">
+                        {notif.severity === 'high' ? (
+                          <AlertTriangle size={16} className="text-soc-alert" />
+                        ) : (
+                          <ShieldCheck size={16} className={notif.severity === 'medium' ? 'text-soc-warning' : 'text-soc-success'} />
+                        )}
+                      </div>
+                      <div>
+                        <p className={`text-sm ${!notif.read ? 'text-white font-medium' : 'text-gray-300'}`}>{notif.title}</p>
+                        <p className="text-xs text-gray-500 mt-1">{new Date(notif.timestamp).toLocaleTimeString()}</p>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
-              <div className="px-4 py-2 border-t border-gray-800 text-center">
-                <button className="text-sm text-soc-accent hover:text-soc-accent/80 font-medium">Mark all as read</button>
-              </div>
+              {notifications.length > 0 && (
+                <div className="px-4 py-2 border-t border-gray-800 text-center">
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); markAllNotificationsRead(); }}
+                    className="text-sm text-soc-accent hover:text-soc-accent/80 font-medium"
+                  >
+                    Mark all as read
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

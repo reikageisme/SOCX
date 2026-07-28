@@ -9,24 +9,29 @@ import json
 logger = logging.getLogger(__name__)
 
 class PlaybookExecutor:
-    def execute_for_incident(self, incident: Incident):
+    def execute_for_incident(self, incident: Incident, db: Session = None):
         playbooks = playbook_manager.get_playbooks()
+        close_db_here = False
+        if not db:
+            db = SessionLocal()
+            close_db_here = True
         
         for pb in playbooks:
             trigger = pb.get("trigger", {})
             
             # Simple match
             if trigger.get("incident_name") == incident.title:
-                # Severity match (simplified)
-                # In real code, we check if incident.severity >= min_severity
-                self._trigger_playbook(pb, incident)
+                self._trigger_playbook(pb, incident, db)
 
-    def _trigger_playbook(self, playbook: dict, incident: Incident):
+        if close_db_here:
+            db.close()
+
+    def _trigger_playbook(self, playbook: dict, incident: Incident, db: Session):
         logger.info(f"Triggering playbook '{playbook['name']}' for incident {incident.id}")
         audit_logger.log("system", "playbook_triggered", playbook['name'], {"incident_id": incident.id})
         
-        db = SessionLocal()
         try:
+            all_auto = True
             for action in playbook.get("actions", []):
                 requires_approval = action.get("requires_approval", True)
                 
@@ -51,7 +56,14 @@ class PlaybookExecutor:
                 
                 if not requires_approval:
                     self._auto_execute_action(req)
+                else:
+                    all_auto = False
                     
+            if all_auto and len(playbook.get("actions", [])) > 0:
+                # OPTION A: Auto-resolve incident if all actions were auto-executed successfully
+                incident.status = "resolved"
+                incident.timeline_notes = (incident.timeline_notes or "") + f"\n[System] Auto-resolved by Playbook: {playbook['name']} at {__import__('datetime').datetime.utcnow().isoformat()}"
+                
             db.commit()
             
             # TODO: Send Alert to Telegram if severity is high
@@ -59,8 +71,6 @@ class PlaybookExecutor:
         except Exception as e:
             logger.error(f"Playbook execution failed: {e}")
             db.rollback()
-        finally:
-            db.close()
 
     def _auto_execute_action(self, action_req: ActionRequest):
         logger.warning(f"⚡ AUTO EXECUTING ACTION: {action_req.action_type} on {action_req.target}")

@@ -39,6 +39,27 @@ export const useProxmoxVms = (nodeName: string) => {
       }
       return response.json();
     },
-    enabled: !!nodeName && !!token,
-  });
-};
+      enabled: !!nodeName && !!token,
+    });
+  };
+  
+  export const useDashboardMetrics = () => {
+    const token = useStore((state) => state.token);
+  
+    return useQuery({
+      queryKey: ['dashboardMetrics'],
+      queryFn: async () => {
+        const response = await fetch(`${API_BASE_URL}/system/dashboard-metrics`, { 
+          headers: {
+            'Authorization': `Bearer ${token}`
+          } 
+        });
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        return response.json();
+      },
+      enabled: !!token,
+      refetchInterval: 5000 // Refetch every 5 seconds for real-time feel
+    });
+  };

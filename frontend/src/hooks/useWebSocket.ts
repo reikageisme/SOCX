@@ -75,6 +75,15 @@ export const useWebSocket = (url: string) => {
               malware_family: data.malware_family,
               metadata: data.metadata
             });
+          } else if (data.type === 'notification') {
+            console.log('[WS] Nhận Notification:', data.data);
+            useStore.getState().addNotification({
+              id: data.data.id,
+              title: data.data.title,
+              severity: data.data.severity,
+              timestamp: data.data.timestamp,
+              read: false
+            });
           } else if (data.type === 'threat_alert') {
             // Legacy format fallback
             eventBuffer.current.push(data.data);

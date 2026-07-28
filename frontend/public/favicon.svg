@@ -1,4 +1,30 @@
-<svg xmlns="http://www.svgrepo.com/show/402128/shield.svg" viewBox="0 0 24 24" width="24" height="24" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <path d="M12 22C12 22 20 18 20 12V5L12 2L4 5V12C4 18 12 22 12 22Z" fill="#151C2C" stroke="#3B82F6" stroke-width="2" stroke-linejoin="round"/>
-  <path d="M9 12L11 14L15 10" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <!-- Background Shield -->
+  <path d="M256 32L64 96v128c0 134.4 83.2 260.8 192 312 108.8-51.2 192-177.6 192-312V96L256 32z" 
+        fill="#0B0F19" stroke="#3B82F6" stroke-width="32" stroke-linejoin="round"/>
+  
+  <!-- Inner glowing gradient effect -->
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#3B82F6" stop-opacity="0.5" />
+      <stop offset="100%" stop-color="#0B0F19" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+  <path d="M256 32L64 96v128c0 134.4 83.2 260.8 192 312 108.8-51.2 192-177.6 192-312V96L256 32z" 
+        fill="url(#glow)"/>
+
+  <!-- Network Nodes inside the shield -->
+  <!-- Top Node -->
+  <circle cx="256" cy="180" r="28" fill="#3B82F6"/>
+  <!-- Bottom Left Node -->
+  <circle cx="170" cy="320" r="24" fill="#3B82F6"/>
+  <!-- Bottom Right Node -->
+  <circle cx="342" cy="320" r="24" fill="#3B82F6"/>
+  <!-- Center small node -->
+  <circle cx="256" cy="270" r="16" fill="#10B981"/>
+
+  <!-- Connecting Lines -->
+  <path d="M256 208 L256 254" stroke="#9CA3AF" stroke-width="12" stroke-linecap="round"/>
+  <path d="M244 280 L188 308" stroke="#9CA3AF" stroke-width="12" stroke-linecap="round"/>
+  <path d="M268 280 L324 308" stroke="#9CA3AF" stroke-width="12" stroke-linecap="round"/>
 </svg>
