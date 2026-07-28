@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, useMapEvent } from 'react-leaflet';
+import React, { useEffect, useState, useMemo } from 'react';
+import { MapContainer, GeoJSON, useMapEvent } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { ThreatEvent } from './ThreatMapLayout';
 import { AttackArc } from './AttackArc';
@@ -10,7 +10,6 @@ const EventRenderer: React.FC<{ events: ThreatEvent[], activeLayers: string[] }>
     setZoom(e.target.getZoom());
   });
 
-  // Helper to map backend event type to the layer names
   const getEventLayer = (e: ThreatEvent) => {
     if (e.type === 'malicious_ip' || e.type === 'Malware') return 'malicious_ip';
     return e.type;
@@ -18,16 +17,12 @@ const EventRenderer: React.FC<{ events: ThreatEvent[], activeLayers: string[] }>
 
   const visibleEvents = events.filter(e => {
     if (e.source.is_local) return false;
-    if (!activeLayers || activeLayers.length === 0) return true; // Show all if no layers specified (e.g. Dashboard)
+    if (!activeLayers || activeLayers.length === 0) return true; 
     const layer = getEventLayer(e);
     return activeLayers.includes(layer);
   });
 
-  // Treat all visible events as arcs, even if they are global feed
-  // For global feed without dest, we can simulate dest as local or skip drawing arcs
   const arcEvents = visibleEvents.filter(e => e.dest);
-  
-  // For events without dest (e.g. global_threat_feed), we draw a glowing dot at source
   const pointEvents = visibleEvents.filter(e => !e.dest);
 
   return (
@@ -35,7 +30,6 @@ const EventRenderer: React.FC<{ events: ThreatEvent[], activeLayers: string[] }>
       {arcEvents.map(event => (
         <AttackArc key={event.id} event={event} />
       ))}
-      
       {pointEvents.map(event => (
         <AttackArc key={event.id} event={event} isPointOnly={true} />
       ))}
@@ -43,13 +37,37 @@ const EventRenderer: React.FC<{ events: ThreatEvent[], activeLayers: string[] }>
   );
 };
 
-export const MapCore = React.memo(({ events, activeLayers = [] }: { events: ThreatEvent[], activeLayers: string[] }) => {
+export const MapCore = React.memo(({ events, activeLayers = [] }: { events: ThreatEvent[], activeLayers?: string[] }) => {
+  const [geoData, setGeoData] = useState<any>(null);
+
+  useEffect(() => {
+    fetch('/countries.geojson')
+      .then(res => res.json())
+      .then(data => setGeoData(data))
+      .catch(err => console.error("Failed to load geojson", err));
+  }, []);
+
+  const geoStyle = useMemo(() => ({
+    fillColor: '#000000',
+    weight: 0.8,
+    opacity: 0.5,
+    color: '#06b6d4',
+    fillOpacity: 0.6
+  }), []);
+
   return (
-    <div className="w-full h-full relative bg-[#050810]">
-      {/* Global CSS for cyan map filter and glowing effects */}
+    <div className="absolute inset-0 w-full h-full bg-[#050810] z-0 overflow-hidden" 
+      style={{
+        backgroundImage: `
+          linear-gradient(rgba(6, 182, 212, 0.05) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(6, 182, 212, 0.05) 1px, transparent 1px)
+        `,
+        backgroundSize: '40px 40px'
+      }}
+    >
       <style>{`
-        .radware-map-tiles {
-          filter: sepia(100%) hue-rotate(180deg) saturate(200%) brightness(80%) contrast(120%) invert(10%);
+        .leaflet-container {
+          background: transparent !important;
         }
         .cyan-glow {
           filter: drop-shadow(0 0 5px #06b6d4) drop-shadow(0 0 10px #06b6d4);
@@ -61,15 +79,18 @@ export const MapCore = React.memo(({ events, activeLayers = [] }: { events: Thre
       <MapContainer 
         center={[20, 0]} 
         zoom={2} 
-        style={{ width: '100%', height: '100%', background: '#050810' }}
-        className="z-0"
+        style={{ width: '100%', height: '100%' }}
         zoomControl={false}
         attributionControl={false}
+        minZoom={2}
+        maxBounds={[[-90, -180], [90, 180]]}
       >
-        <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png"
-          className="radware-map-tiles"
-        />
+        {geoData && (
+          <GeoJSON 
+            data={geoData} 
+            style={geoStyle}
+          />
+        )}
         <EventRenderer events={events} activeLayers={activeLayers} />
       </MapContainer>
     </div>

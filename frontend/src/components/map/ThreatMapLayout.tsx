@@ -78,35 +78,46 @@ export const ThreatMapLayout: React.FC = () => {
   }, []);
 
   return (
-    <div className="relative w-full h-[calc(100vh-64px)] -m-8 flex flex-col bg-[#0a0f1d] text-white overflow-hidden font-inter">
-      <HeaderStats totalAttacks={totalAttacks} />
-      
-      <div className="flex flex-1 overflow-hidden relative">
-        <LeftPanel 
-          events={events} 
-          activeLayers={activeLayers} 
-          setActiveLayers={setActiveLayers}
-          isCollapsed={isLeftCollapsed}
-          onToggle={() => setIsLeftCollapsed(!isLeftCollapsed)}
-        />
-        
-        <div className="flex-1 relative bg-[#050810]">
-          {!wsConnected && (
-            <div className="absolute inset-0 z-[1000] flex items-center justify-center bg-[#0a0f1d]/80 backdrop-blur-sm">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-500 mx-auto mb-4"></div>
-                <p className="text-cyan-400 text-lg font-semibold tracking-wider uppercase">Reconnecting to Control Plane...</p>
-              </div>
+    <div className="relative w-full h-[calc(100vh-64px)] -m-8 flex flex-col bg-[#050810] text-white overflow-hidden font-inter">
+      {/* Background Map Container */}
+      <div className="absolute inset-0 z-0">
+        {!wsConnected && (
+          <div className="absolute inset-0 z-[1000] flex items-center justify-center bg-[#0a0f1d]/80 backdrop-blur-sm">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-500 mx-auto mb-4"></div>
+              <p className="text-cyan-400 text-lg font-semibold tracking-wider uppercase">Reconnecting to Control Plane...</p>
             </div>
-          )}
-          <MapCore events={events} activeLayers={activeLayers} />
-        </div>
+          </div>
+        )}
+        <MapCore events={events} activeLayers={activeLayers} />
+      </div>
 
-        <StatsPanel 
-          events={events} 
-          isCollapsed={isStatsCollapsed} 
-          onToggle={() => setIsStatsCollapsed(!isStatsCollapsed)} 
-        />
+      {/* Floating Header */}
+      <div className="absolute top-0 left-0 right-0 z-20">
+        <HeaderStats totalAttacks={totalAttacks} />
+      </div>
+
+      {/* Floating Panels Container */}
+      <div className="absolute top-20 bottom-0 left-0 right-0 pointer-events-none flex justify-between z-10 overflow-hidden">
+        {/* Left Panel */}
+        <div className="pointer-events-auto h-full flex flex-col pt-4 pb-8 pl-4">
+          <LeftPanel 
+            events={events} 
+            activeLayers={activeLayers} 
+            setActiveLayers={setActiveLayers}
+            isCollapsed={isLeftCollapsed}
+            onToggle={() => setIsLeftCollapsed(!isLeftCollapsed)}
+          />
+        </div>
+        
+        {/* Right Panel */}
+        <div className="pointer-events-auto h-full flex flex-col pt-4 pb-8 pr-4">
+          <StatsPanel 
+            events={events} 
+            isCollapsed={isStatsCollapsed} 
+            onToggle={() => setIsStatsCollapsed(!isStatsCollapsed)} 
+          />
+        </div>
       </div>
     </div>
   );

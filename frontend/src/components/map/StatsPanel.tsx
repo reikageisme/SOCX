@@ -79,37 +79,40 @@ export const StatsPanel: React.FC<StatsPanelProps> = ({ events, isCollapsed = fa
   );
 
   return (
-    <div className={`transition-all duration-300 ${isCollapsed ? 'w-12' : 'w-80'} bg-[#0a0f1d]/95 backdrop-blur-md border-l border-gray-800 flex flex-col z-10 shadow-2xl relative overflow-hidden`}>
+    <div className={`transition-all duration-300 ${isCollapsed ? 'w-12' : 'w-[320px]'} bg-transparent flex flex-col z-10 relative overflow-hidden`}>
       <button 
         onClick={onToggle}
-        className="absolute -left-3 top-8 bg-cyan-500 text-white rounded-full p-1 shadow-lg border-2 border-[#0a0f1d] hover:bg-cyan-400 z-50 transition-colors"
+        className="absolute -left-6 top-4 bg-cyan-900/40 text-cyan-500 rounded-sm p-1 shadow-lg border border-cyan-800 hover:bg-cyan-800 z-50 transition-colors"
       >
         {isCollapsed ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
       </button>
 
-      <div className={`flex flex-col h-full ${isCollapsed ? 'opacity-0 invisible' : 'opacity-100 visible'} transition-opacity duration-300`}>
-        
-        {/* Interval Selector */}
-        <div className="p-6 pb-2 border-b border-gray-800/50">
-          <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.1em] mb-2">Statistics Interval</h3>
-          <div className="relative">
-            <select 
-              value={interval}
-              onChange={(e) => setInterval(e.target.value as any)}
-              className="w-full bg-[#13192b] border border-gray-700 text-white text-sm rounded px-3 py-2 appearance-none focus:outline-none focus:border-cyan-500 transition-colors cursor-pointer"
-            >
-              <option value="1h">Last 1 Hour</option>
-              <option value="24h">Last 24 Hours</option>
-              <option value="7d">Last 7 Days</option>
-            </select>
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-              <Clock size={14} className="text-gray-400" />
+      <div className={`flex flex-col h-full overflow-hidden ${isCollapsed ? 'opacity-0 invisible' : 'opacity-100 visible'} transition-opacity duration-300`}>
+        <div className="flex-1 flex flex-col bg-[#050810]/60 backdrop-blur-sm border border-gray-800/60 rounded-sm shadow-2xl overflow-y-auto custom-scrollbar p-5">
+          <h2 className="text-cyan-500 font-bold uppercase tracking-widest mb-6 border-b border-gray-800/50 pb-4">
+            Live Cyber Threat Map
+          </h2>
+          
+          {/* STATISTICS INTERVAL */}
+          <div className="mb-6">
+            <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3">Statistics Interval</h3>
+            <div className="relative">
+              <select 
+                value={interval}
+                onChange={(e) => setInterval(e.target.value as any)}
+                className="w-full bg-transparent border border-cyan-900/50 text-cyan-400 text-sm rounded-sm px-3 py-2 appearance-none outline-none focus:border-cyan-500 transition-colors cursor-pointer"
+              >
+                <option value="1h" className="bg-[#0a0f1d]">1 hour</option>
+                <option value="24h" className="bg-[#0a0f1d]">24 hours</option>
+                <option value="7d" className="bg-[#0a0f1d]">7 days</option>
+              </select>
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-cyan-700">
+                ▼
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="flex-1 p-6 overflow-y-auto custom-scrollbar">
-          <div className="space-y-2 min-w-[250px]">
+          <div className="space-y-2 mt-2">
             {renderPanel("Top Attackers", topSources)}
             {renderPanel("Top Attacked", topTargets)}
             {renderPanel("Top Network Attack Vectors", topVectors)}

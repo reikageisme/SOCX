@@ -38,33 +38,36 @@ export const HeaderStats: React.FC<HeaderStatsProps> = ({ totalAttacks }) => {
   }, [threatEvents, now]);
 
   const handleExport = () => {
-    // In a real implementation, this would use html2canvas to capture the map
     alert("Snapshot export functionality will capture the current map state.");
   };
 
   return (
-    <div className="h-16 bg-[#0a0f1d] border-b border-gray-800 flex items-center justify-between px-6 shrink-0 z-20 shadow-lg">
-      <div className="flex items-center gap-8">
+    <div className="h-20 bg-transparent flex items-center justify-between px-8 z-20">
+      <div className="flex items-center gap-12">
         {/* Logo and Title */}
         <div className="flex items-center gap-3">
-          <div className="bg-cyan-500/20 p-2 rounded-lg">
-            <Activity className="w-6 h-6 text-cyan-400" />
-          </div>
           <div className="flex flex-col">
-            <h1 className="text-xl font-black tracking-wider text-white uppercase font-inter leading-none">
-              ACE CYBER SECURITY
-            </h1>
-            <span className="text-xs font-semibold text-cyan-500 uppercase tracking-[0.2em] mt-1">
-              Live Threat Map
+            <div className="flex items-center gap-2">
+              {/* Radware style dots logo simulation */}
+              <div className="grid grid-cols-3 gap-0.5">
+                {[...Array(9)].map((_, i) => (
+                  <div key={i} className={`w-1.5 h-1.5 rounded-full ${i % 2 === 0 ? 'bg-cyan-500' : 'bg-red-500'}`}></div>
+                ))}
+              </div>
+              <h1 className="text-[22px] font-black tracking-wider text-white lowercase font-inter leading-none">
+                ace<span className="text-gray-400 font-normal">security</span>
+              </h1>
+            </div>
+            <span className="text-[10px] text-gray-400 mt-1 ml-6">
+              Powered by ACE's<br/>Threat Intelligence
             </span>
           </div>
         </div>
 
-        {/* Global Attacks Counter */}
-        <div className="flex items-center gap-4 ml-12 border-l border-gray-800 pl-8">
+        {/* Global Attacks Counter (moved right) */}
+        <div className="flex items-center gap-4">
           <div className="flex flex-col">
-            <span className="text-cyan-500/70 font-bold tracking-[0.1em] text-[10px] uppercase mb-1 flex items-center gap-1">
-              <ShieldAlert className="w-3 h-3" />
+            <span className="text-cyan-500 font-bold tracking-[0.1em] text-[10px] uppercase mb-1">
               Global Attacks Today
             </span>
             <span className="text-3xl font-black text-white tracking-tight leading-none" style={{ fontVariantNumeric: 'tabular-nums' }}>
@@ -72,7 +75,7 @@ export const HeaderStats: React.FC<HeaderStatsProps> = ({ totalAttacks }) => {
             </span>
           </div>
           
-          <div className="w-48 h-10 opacity-80 mt-2">
+          <div className="w-32 h-8 opacity-80 mt-2">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={chartData}>
                 <defs>
@@ -81,7 +84,7 @@ export const HeaderStats: React.FC<HeaderStatsProps> = ({ totalAttacks }) => {
                     <stop offset="95%" stopColor="#06b6d4" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <Area type="monotone" dataKey="value" stroke="#06b6d4" fillOpacity={1} fill="url(#colorUv)" strokeWidth={2} isAnimationActive={false} />
+                <Area type="monotone" dataKey="value" stroke="#06b6d4" fillOpacity={1} fill="url(#colorUv)" strokeWidth={1.5} isAnimationActive={false} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -89,11 +92,13 @@ export const HeaderStats: React.FC<HeaderStatsProps> = ({ totalAttacks }) => {
       </div>
 
       <div className="flex items-center gap-4">
+        <button className="bg-red-900/30 border border-red-800 text-red-500 hover:bg-red-900/50 px-4 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors mr-2">
+          Read 2026 Threat Report
+        </button>
         <button 
           onClick={handleExport}
-          className="flex items-center gap-2 bg-transparent border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 px-5 py-2 rounded-sm text-sm font-bold uppercase tracking-wider transition-colors"
+          className="bg-red-600 text-white hover:bg-red-700 px-4 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors"
         >
-          <Download className="w-4 h-4" />
           Export Snapshot
         </button>
       </div>

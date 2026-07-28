@@ -38,32 +38,32 @@ export const AttackArc = React.memo(({ event, isPointOnly = false }: { event: Th
             pathOptions={{
               color: color,
               weight: 1,
-              opacity: 0.3,
-              className: 'arc-real-base attack-arc-fade ' + glowClass
+              opacity: 0.2,
+              className: 'arc-real-base ' + glowClass
             }}
           />
           {/* Moving Particle */}
           <Polyline
             positions={positions}
             pathOptions={{
-              color: '#ffffff', // white core for the particle
-              weight: 2,
-              opacity: 1,
-              className: 'attack-particle attack-arc-fade ' + glowClass
+              color: color, // Use the same color for the particle instead of white for better blending
+              weight: 1.5,
+              opacity: 0.8,
+              className: 'attack-particle ' + glowClass
             }}
           />
           {/* Glowing Target Dot */}
           {event.dest && (
             <CircleMarker
               center={[event.dest.lat, event.dest.lng]}
-              radius={3}
+              radius={2.5}
               pathOptions={{
                 color: color,
-                fillColor: '#ffffff',
+                fillColor: color,
                 fillOpacity: 1,
-                weight: 1,
+                weight: 0,
                 opacity: 1,
-                className: 'target-pulse-animation attack-arc-fade ' + glowClass
+                className: 'target-pulse-animation ' + glowClass
               }}
             />
           )}

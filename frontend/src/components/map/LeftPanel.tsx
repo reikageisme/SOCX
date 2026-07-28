@@ -28,18 +28,20 @@ export const LeftPanel: React.FC<LeftPanelProps> = ({ events, activeLayers, setA
   ];
 
   return (
-    <div className={`transition-all duration-300 ${isCollapsed ? 'w-12' : 'w-80'} bg-[#0a0f1d]/95 backdrop-blur-md border-r border-gray-800 flex flex-col z-10 shadow-2xl relative`}>
+    <div className={`transition-all duration-300 ${isCollapsed ? 'w-12' : 'w-[320px]'} bg-transparent flex flex-col z-10 relative`}>
       <button 
         onClick={onToggle}
-        className="absolute -right-3 top-8 bg-cyan-500 text-white rounded-full p-1 shadow-lg border-2 border-[#0a0f1d] hover:bg-cyan-400 z-50 transition-colors"
+        className="absolute -right-6 top-4 bg-cyan-900/40 text-cyan-500 rounded-sm p-1 shadow-lg border border-cyan-800 hover:bg-cyan-800 z-50 transition-colors"
       >
         {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
       </button>
 
-      <div className={`flex flex-col h-full overflow-hidden ${isCollapsed ? 'opacity-0 invisible' : 'opacity-100 visible'} transition-opacity duration-300`}>
+      <div className={`flex flex-col h-full overflow-hidden ${isCollapsed ? 'opacity-0 invisible' : 'opacity-100 visible'} transition-opacity duration-300 gap-6`}>
         {/* ATTACK TYPES */}
-        <div className="p-6 pb-4 border-b border-gray-800/50">
-          <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.15em] mb-4">Attack Types</h3>
+        <div className="bg-[#050810]/60 backdrop-blur-sm border border-gray-800/60 rounded-sm p-5 shadow-2xl">
+          <h3 className="text-cyan-500 font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
+            Attack Types
+          </h3>
           <div className="space-y-3">
             {layers.map(layer => (
               <label key={layer.id} className="flex items-center gap-3 cursor-pointer group">
@@ -50,65 +52,51 @@ export const LeftPanel: React.FC<LeftPanelProps> = ({ events, activeLayers, setA
                     checked={activeLayers.includes(layer.id)}
                     onChange={() => toggleLayer(layer.id)}
                   />
-                  <div className={`w-4 h-4 border rounded transition-colors ${activeLayers.includes(layer.id) ? 'border-cyan-500 bg-cyan-500/20' : 'border-gray-600 bg-transparent group-hover:border-gray-400'}`}>
+                  <div className={`w-4 h-4 border rounded-full transition-colors ${activeLayers.includes(layer.id) ? 'border-cyan-500' : 'border-gray-600 group-hover:border-gray-400'}`}>
                     {activeLayers.includes(layer.id) && (
-                      <svg className="w-3 h-3 text-cyan-400 absolute top-0.5 left-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                      </svg>
+                      <div className={`w-2 h-2 rounded-full absolute top-1 left-1 ${layer.color}`}></div>
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className={`w-2 h-2 rounded-full ${layer.color} shadow-[0_0_8px_currentColor] opacity-80`} />
-                  <span className="text-sm text-gray-300 group-hover:text-white transition-colors font-medium">
-                    {layer.label}
-                  </span>
-                </div>
+                <span className={`text-[13px] font-semibold tracking-wide ${activeLayers.includes(layer.id) ? 'text-white' : 'text-gray-500'} group-hover:text-white transition-colors`}>
+                  {layer.label}
+                </span>
               </label>
             ))}
           </div>
         </div>
 
         {/* THREAT ALERTS */}
-        <div className="flex-1 overflow-hidden flex flex-col pt-4">
-          <h3 className="px-6 text-[11px] font-bold text-gray-400 uppercase tracking-[0.15em] mb-3">Threat Alerts</h3>
-          <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 space-y-1 custom-scrollbar pb-4">
+        <div className="flex-1 flex flex-col bg-[#050810]/60 backdrop-blur-sm border border-gray-800/60 rounded-sm shadow-2xl overflow-hidden">
+          <h3 className="text-cyan-500 font-bold uppercase tracking-widest p-5 pb-2">
+            Threat Alerts
+          </h3>
+          <div className="flex-1 overflow-y-auto px-5 pb-5 space-y-2 custom-scrollbar">
             {events.map((event) => (
-              <div key={event.id} className="p-3 bg-[#13192b]/50 hover:bg-[#1a2138] rounded-lg transition-colors group cursor-pointer border border-transparent hover:border-gray-700/50 mb-1">
-                <div className="flex justify-between items-center mb-1">
-                  <span className="text-[10px] text-gray-500 font-mono tracking-wider">
-                    {new Date(event.timestamp).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                  </span>
-                  <span className={`text-[9px] uppercase font-bold px-1.5 py-0.5 rounded border ${
-                    event.type === 'Malware' || event.type === 'malicious_ip' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
-                    event.type === 'Phishing' ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' :
-                    event.type === 'Exploit' ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' :
-                    'bg-cyan-500/10 text-cyan-400 border-cyan-500/20'
-                  }`}>
-                    {event.source_kind === 'global_threat_feed' ? 'INTEL' : event.type}
-                  </span>
+              <div key={event.id} className="group cursor-pointer border-b border-gray-800/50 pb-2 mb-2 last:border-0 hover:bg-white/5 transition-colors p-2 -mx-2 rounded">
+                <div className="flex items-start gap-2">
+                  <div className={`mt-1 flex-shrink-0 w-2 h-2 rounded-full ${
+                    event.type === 'Malware' || event.type === 'malicious_ip' ? 'bg-red-500' :
+                    event.type === 'Phishing' ? 'bg-purple-500' :
+                    event.type === 'Exploit' ? 'bg-orange-500' : 'bg-cyan-500'
+                  }`}></div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-gray-300 text-[12px] font-medium leading-snug break-words">
+                      {event.source_kind === 'global_threat_feed' ? (
+                        <>Intel: {event.source.country} <span className="opacity-50">({event.reported_by})</span></>
+                      ) : (
+                        <>Local: {event.source.country} → {event.dest?.country}</>
+                      )}
+                    </div>
+                    <div className="text-gray-500 text-[10px] mt-0.5 font-mono">
+                      {new Date(event.timestamp).toLocaleTimeString([], { hour12: false })} • {event.type}
+                    </div>
+                  </div>
                 </div>
-                
-                {event.source_kind === 'global_threat_feed' ? (
-                  <div className="flex flex-col text-sm">
-                    <span className="font-medium text-gray-300 truncate">
-                      {event.source.country} • {event.reported_by}
-                    </span>
-                    <span className="text-[11px] text-cyan-500/70 truncate mt-0.5">
-                      {event.malware_family !== 'Unknown' ? event.malware_family : 'Malicious IP'}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 text-sm mt-1">
-                    <span className="font-medium text-gray-300 w-10 truncate">{event.source.country}</span>
-                    <span className="text-cyan-500/50 text-[10px]">▶</span>
-                    <span className="font-medium text-white w-10 truncate">{event.dest?.country}</span>
-                  </div>
-                )}
               </div>
             ))}
             {events.length === 0 && (
-              <div className="p-6 text-center text-gray-600 text-xs uppercase tracking-widest mt-10 border border-dashed border-gray-800 rounded-lg mx-2">Listening for threats...</div>
+              <div className="text-center text-gray-600 text-xs uppercase tracking-widest mt-10">Waiting for alerts...</div>
             )}
           </div>
         </div>
