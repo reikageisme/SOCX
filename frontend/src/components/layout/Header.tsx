@@ -17,7 +17,7 @@ export const Header = () => {
     e.preventDefault();
     if (!iocQuery) return;
     try {
-      const res = await fetch(`http://localhost:8000/api/v1/intel/lookup?q=${encodeURIComponent(iocQuery)}`);
+      const res = await fetch(`/api/v1/intel/lookup?q=${encodeURIComponent(iocQuery)}`);
       const data = await res.json();
       setLookupResult(data);
     } catch (err) {

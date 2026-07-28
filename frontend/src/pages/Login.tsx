@@ -21,7 +21,7 @@ export const Login = () => {
       formData.append('username', username);
       formData.append('password', password);
 
-      const response = await fetch('http://localhost:8000/api/v1/login/access-token', {
+      const response = await fetch('/api/v1/login/access-token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',

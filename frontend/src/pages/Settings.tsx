@@ -13,7 +13,7 @@ export const SettingsPage: React.FC = () => {
   const [saveMsg, setSaveMsg] = useState('');
 
   useEffect(() => {
-    fetch('http://localhost:8000/api/v1/settings', {
+    fetch('/api/v1/settings', {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(r => r.json())

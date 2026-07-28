@@ -7,7 +7,7 @@ export const Incidents = () => {
     const fetchIncidents = async () => {
       try {
         const token = localStorage.getItem('token') || '';
-        const res = await fetch('http://localhost:8000/api/v1/incidents', {
+        const res = await fetch('/api/v1/incidents', {
           headers: {
             'Authorization': `Bearer ${token}`
           }

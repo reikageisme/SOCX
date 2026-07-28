@@ -20,7 +20,7 @@ export const RulesPage: React.FC = () => {
   const { data, isLoading } = useQuery({
     queryKey: ['rules'],
     queryFn: async () => {
-      const res = await fetch('http://localhost:8000/api/v1/rules', {
+      const res = await fetch('/api/v1/rules', {
         headers: { Authorization: `Bearer ${token}` }
       });
       return res.json();
@@ -29,7 +29,7 @@ export const RulesPage: React.FC = () => {
 
   const validateRule = async () => {
     try {
-      const res = await fetch('http://localhost:8000/api/v1/rules/validate', {
+      const res = await fetch('/api/v1/rules/validate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -53,7 +53,7 @@ export const RulesPage: React.FC = () => {
 
   const dryRunRule = async () => {
     try {
-      const res = await fetch('http://localhost:8000/api/v1/rules/dry-run', {
+      const res = await fetch('/api/v1/rules/dry-run', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -6,7 +6,9 @@ import { useWebSocket } from '../../hooks/useWebSocket';
 
 export const Layout = () => {
   // Initialize WebSocket connection at the layout level
-  useWebSocket('ws://localhost:8000/ws/threat-map');
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const wsUrl = `${protocol}//${window.location.host}/ws/threat-map`;
+  useWebSocket(wsUrl);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   return (

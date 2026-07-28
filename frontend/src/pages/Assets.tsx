@@ -7,7 +7,7 @@ export const Assets = () => {
     const fetchAssets = async () => {
       try {
         const token = localStorage.getItem('token') || '';
-        const res = await fetch('http://localhost:8000/api/v1/assets', {
+        const res = await fetch('/api/v1/assets', {
           headers: {
             'Authorization': `Bearer ${token}`
           }

@@ -20,7 +20,7 @@ export const LogsPage: React.FC = () => {
   const { data, isLoading } = useQuery({
     queryKey: ['logs'],
     queryFn: async () => {
-      const res = await fetch('http://localhost:8000/api/v1/logs', {
+      const res = await fetch('/api/v1/logs', {
         headers: { Authorization: `Bearer ${token}` }
       });
       return res.json();
