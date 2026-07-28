@@ -55,6 +55,16 @@ export const MapCore = React.memo(({ events, activeLayers = [] }: { events: Thre
     fillOpacity: 0.6
   }), []);
 
+  const onEachFeature = (feature: any, layer: any) => {
+    if (feature.properties && feature.properties.ADMIN) {
+      layer.bindTooltip(feature.properties.ADMIN, {
+        sticky: true,
+        className: 'custom-tooltip',
+        direction: 'auto',
+      });
+    }
+  };
+
   return (
     <div className="absolute inset-0 w-full h-full bg-[#050810] z-0 overflow-hidden" 
       style={{
@@ -75,6 +85,18 @@ export const MapCore = React.memo(({ events, activeLayers = [] }: { events: Thre
         .purple-glow {
           filter: drop-shadow(0 0 5px #c084fc) drop-shadow(0 0 10px #c084fc);
         }
+        .custom-tooltip {
+          background-color: rgba(10, 15, 29, 0.9) !important;
+          border: 1px solid rgba(6, 182, 212, 0.5) !important;
+          color: #fff !important;
+          font-weight: bold;
+          font-family: 'Inter', sans-serif;
+          border-radius: 4px;
+          padding: 4px 8px;
+        }
+        .custom-tooltip::before {
+          border-top-color: rgba(6, 182, 212, 0.5) !important;
+        }
       `}</style>
       <MapContainer 
         center={[20, 0]} 
@@ -89,6 +111,7 @@ export const MapCore = React.memo(({ events, activeLayers = [] }: { events: Thre
           <GeoJSON 
             data={geoData} 
             style={geoStyle}
+            onEachFeature={onEachFeature}
           />
         )}
         <EventRenderer events={events} activeLayers={activeLayers} />

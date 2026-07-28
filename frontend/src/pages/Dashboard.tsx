@@ -65,14 +65,9 @@ export const Dashboard = () => {
         </div>
       </div>
 
-      {/* Live Threat Map */}
-      <div className="w-full">
-        <DashboardMap />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[500px]">
+      <div className="h-[500px]">
         {/* Proxmox Nodes Table */}
-        <div className="lg:col-span-2 bg-soc-card rounded-xl border border-gray-800 shadow-lg flex flex-col">
+        <div className="h-full bg-soc-card rounded-xl border border-gray-800 shadow-lg flex flex-col">
           <div className="p-6 border-b border-gray-800 flex justify-between items-center">
             <h3 className="text-lg font-bold text-white flex items-center gap-2">
               <Server className="w-5 h-5 text-soc-accent" />
@@ -119,45 +114,6 @@ export const Dashboard = () => {
                   )}
                 </tbody>
               </table>
-            )}
-          </div>
-        </div>
-
-        {/* Live Threat Feed */}
-        <div className="bg-soc-card rounded-xl border border-gray-800 shadow-lg flex flex-col">
-          <div className="p-6 border-b border-gray-800 flex justify-between items-center">
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              <Activity className="w-5 h-5 text-soc-alert" />
-              Live Threat Feed
-            </h3>
-            <span className="flex h-3 w-3 relative">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-soc-alert opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-soc-alert"></span>
-            </span>
-          </div>
-          <div className="p-4 flex-1 overflow-auto space-y-3">
-            {threatEvents.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-soc-muted opacity-50">
-                <ShieldAlert className="w-12 h-12 mb-3" />
-                <p>No threats detected</p>
-              </div>
-            ) : (
-              threatEvents.map((event, idx) => (
-                <div key={idx} className="bg-black/20 p-3 rounded-lg border border-soc-alert/10 hover:border-soc-alert/30 transition-colors">
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="text-xs font-semibold text-soc-alert bg-soc-alert/10 px-2 py-0.5 rounded border border-soc-alert/20">
-                      {event.severity?.toUpperCase() || 'UNKNOWN'}
-                    </span>
-                    <span className="text-xs text-soc-muted">{new Date(event.timestamp).toLocaleTimeString()}</span>
-                  </div>
-                  <p className="text-sm text-white font-medium mb-1">{event.type || event.rule}</p>
-                  <div className="text-xs text-soc-muted font-mono flex items-center justify-between">
-                    <span>{event.source?.country || event.source_ip || 'Unknown'}</span>
-                    <span className="text-gray-600">→</span>
-                    <span>{event.dest?.country || event.dest_ip || 'Unknown'}</span>
-                  </div>
-                </div>
-              ))
             )}
           </div>
         </div>
