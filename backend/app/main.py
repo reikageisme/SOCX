@@ -129,7 +129,7 @@ def dry_run_rule(req: ValidateRequest):
         # Override rules with just this one
         rule_manager.rules = [parsed]
         for ev in mock_events:
-            engine.evaluate_event(ev)
+            engine.evaluate_event(ev, dry_run=True)
         
         # Restore actual rules
         rule_manager.load_local_rules()

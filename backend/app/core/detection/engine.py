@@ -16,7 +16,7 @@ class DetectionEngine:
         self.state: Dict[str, Dict[str, Any]] = {}
         self.window_seconds = 300 # 5 minutes
 
-    def evaluate_event(self, event: Dict[str, Any]):
+    def evaluate_event(self, event: Dict[str, Any], dry_run: bool = False) -> bool:
         rules = rule_manager.get_rules()
         source_ip = event.get("source", {}).get("query") or event.get("source", {}).get("country") or "unknown_ip"
         
@@ -24,9 +24,12 @@ class DetectionEngine:
         if "saddr" in event.get("metadata", {}):
             source_ip = event["metadata"]["saddr"]
 
+        triggered = False
         for rule in rules:
             if self._matches_selection(event, rule.get("selection", {})):
-                self._correlate(source_ip, rule, event)
+                if self._correlate(source_ip, rule, event, dry_run=dry_run):
+                    triggered = True
+        return triggered
 
     def _matches_selection(self, event: Dict[str, Any], selection: Dict[str, Any]) -> bool:
         # Simple matching logic
@@ -43,7 +46,7 @@ class DetectionEngine:
             return False
         return True
 
-    def _correlate(self, source_ip: str, rule: Dict[str, Any], event: Dict[str, Any]):
+    def _correlate(self, source_ip: str, rule: Dict[str, Any], event: Dict[str, Any], dry_run: bool = False) -> bool:
         rule_name = rule.get("name", "Unknown Rule")
         key = f"{source_ip}:{rule_name}"
         now = time.time()
@@ -72,8 +75,11 @@ class DetectionEngine:
         if self.state[key]["count"] >= threshold:
             # Check if we already created an incident recently to avoid spam
             if not self.state[key].get("incident_created"):
-                self._create_incident(source_ip, rule, self.state[key]["events"])
+                if not dry_run:
+                    self._create_incident(source_ip, rule, self.state[key]["events"])
                 self.state[key]["incident_created"] = True
+            return True
+        return False
 
     def _create_incident(self, source_ip: str, rule: Dict[str, Any], events: List[Dict[str, Any]]):
         logger.warning(f"🚨 INCIDENT TRIGGERED: {rule['name']} from {source_ip}")
