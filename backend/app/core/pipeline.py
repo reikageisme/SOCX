@@ -72,6 +72,9 @@ class Pipeline:
     async def _global_feed_worker(self):
         """Drip-feed global threats to WebSocket to avoid UI freeze"""
         import random
+        # Default local infrastructure destination to draw arcs to
+        local_geo = {"lat": 14.0583, "lng": 108.2772, "country": "Local Network"}
+        
         while self.is_running:
             try:
                 # If queue is empty, simulate a random attack from known malicious IPs
@@ -87,6 +90,7 @@ class Pipeline:
                         event = {
                             "source_kind": "global_threat_feed",
                             "source": geo,
+                            "dest": local_geo,
                             "severity": "high" if meta.get("confidence", 0) > 0.8 else "medium",
                             "type": "malicious_ip",
                             "timestamp": datetime.utcnow().isoformat() + "Z",
@@ -117,6 +121,7 @@ class Pipeline:
                     event = {
                         "source_kind": "global_threat_feed",
                         "source": geo,
+                        "dest": local_geo,
                         "severity": "high" if meta.get("confidence", 0) > 0.8 else "medium",
                         "type": "malicious_ip",
                         "timestamp": datetime.utcnow().isoformat() + "Z",
