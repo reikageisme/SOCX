@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Polyline, CircleMarker, Popup } from 'react-leaflet';
+import { Polyline, CircleMarker, Tooltip } from 'react-leaflet';
 import type { ThreatEvent } from './ThreatMapLayout';
 
 const getBezierCurve = (start: [number, number], end: [number, number], segments = 25) => {
@@ -33,11 +33,19 @@ const getBezierCurve = (start: [number, number], end: [number, number], segments
   return points;
 };
 
-export const AttackArc = React.memo(({ event, isPointOnly = false }: { event: ThreatEvent, isPointOnly?: boolean }) => {
+export const AttackArc = React.memo(({ event, isPointOnly = false, count = 1 }: { event: ThreatEvent, isPointOnly?: boolean, count?: number }) => {
   // We use cyan and purple to match the Radware theme
   const isIntel = event.source_kind === 'global_threat_feed';
   const color = isIntel ? '#c084fc' : '#06b6d4'; // Purple for intel, Cyan for local alerts
   const glowClass = isIntel ? 'purple-glow' : 'cyan-glow';
+
+  // Increase thickness based on bundled events count (max 3x thickness)
+  const bundleWeight = Math.min(2 + (count * 0.5), 6);
+  const particleWeight = Math.min(2.5 + (count * 0.5), 7);
+  
+  // Format destination display name
+  const destName = event.dest?.is_local ? 'Local Network / Internal Asset' : (event.dest?.query || event.dest?.country || 'Unknown');
+  const sourceName = event.source?.query || event.source?.country || 'Unknown';
 
   const positions = useMemo(() => {
     if (isPointOnly) return [];
@@ -64,7 +72,7 @@ export const AttackArc = React.memo(({ event, isPointOnly = false }: { event: Th
             positions={positions}
             pathOptions={{
               color: color,
-              weight: 2,
+              weight: bundleWeight,
               opacity: 0.3,
               className: 'arc-real-base ' + glowClass
             }}
@@ -74,7 +82,7 @@ export const AttackArc = React.memo(({ event, isPointOnly = false }: { event: Th
             positions={positions}
             pathOptions={{
               color: '#ffffff',
-              weight: 2.5,
+              weight: particleWeight,
               opacity: 1,
               className: 'attack-particle'
             }}
@@ -83,7 +91,7 @@ export const AttackArc = React.memo(({ event, isPointOnly = false }: { event: Th
           {event.dest && (
             <CircleMarker
               center={[event.dest.lat, event.dest.lng]}
-              radius={4}
+              radius={Math.min(4 + count, 10)}
               pathOptions={{
                 color: color,
                 fillColor: '#ffffff',
@@ -100,7 +108,7 @@ export const AttackArc = React.memo(({ event, isPointOnly = false }: { event: Th
       {/* Source Dot */}
       <CircleMarker
         center={[event.source?.lat || 0, event.source?.lng || 0]}
-        radius={isPointOnly ? 4 : 2}
+        radius={isPointOnly ? 4 : (Math.min(2 + count, 6))}
         pathOptions={{
           color: color,
           fillColor: isPointOnly ? '#ffffff' : color,
@@ -110,21 +118,22 @@ export const AttackArc = React.memo(({ event, isPointOnly = false }: { event: Th
           className: 'attack-arc-fade ' + (isPointOnly ? 'target-pulse-animation ' + glowClass : '')
         }}
       >
-        <Popup>
-          <div className="bg-[#0a0f1d] text-white p-3 text-sm rounded border border-gray-700 shadow-xl font-inter">
-            <strong className="text-cyan-400">{event.source?.query || event.source?.country}</strong> 
+        <Tooltip sticky direction="auto" className="custom-event-tooltip">
+          <div className="bg-[#0a0f1d] text-white p-2 text-sm rounded border border-gray-700 font-inter">
+            {count > 1 && <span className="text-yellow-400 font-bold mr-2">[{count}x]</span>}
+            <strong className="text-cyan-400">{sourceName}</strong> 
             {!isPointOnly && (
               <>
                 <span className="text-gray-500 mx-2">&rarr;</span>
-                <strong className="text-white">{event.dest?.query || event.dest?.country || 'Local Server'}</strong>
+                <strong className="text-white">{destName}</strong>
               </>
             )}
             <br />
-            <span className="text-xs uppercase tracking-widest text-gray-400 mt-2 block border-t border-gray-800 pt-1">
+            <span className="text-xs uppercase tracking-widest text-gray-400 mt-1 block border-t border-gray-800 pt-1">
               {event.type}
             </span>
           </div>
-        </Popup>
+        </Tooltip>
       </CircleMarker>
     </>
   );

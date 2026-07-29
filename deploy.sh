@@ -35,6 +35,9 @@ echo "[+] Stopping any running containers..."
 docker compose -f docker-compose.prod.yml down || true
 
 # 4. Pull updates and build
+echo "[+] Pulling latest updates from Github..."
+git pull origin main
+
 echo "[+] Building and starting ACS Production Stack..."
 docker compose -f docker-compose.prod.yml up -d --build
 
@@ -43,4 +46,5 @@ echo " Deployment Successful! "
 echo " ACS is now running at https://localhost (or your server's IP)."
 echo " Note: Your browser will show a warning because this is a self-signed cert."
 echo " Accept the risk and proceed to the login page."
+echo " To view logs: docker compose -f docker-compose.prod.yml logs -f"
 echo "======================================"

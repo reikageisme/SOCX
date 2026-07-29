@@ -26,13 +26,35 @@ const EventRenderer: React.FC<{ events: ThreatEvent[], activeLayers: string[] }>
   const arcEvents = visibleEvents.filter(e => e.dest);
   const pointEvents = visibleEvents.filter(e => !e.dest);
 
+  // Bundle arcs that have the same source and destination to prevent SVG lag
+  const bundledArcEvents = useMemo(() => {
+    const bundles: Record<string, { key: string; event: ThreatEvent; count: number }> = {};
+    arcEvents.forEach(e => {
+      // Group by country or rounded coordinates if country is missing, and source_kind to separate colors
+      const srcKey = e.source.country || `${Math.round(e.source.lat)},${Math.round(e.source.lng)}`;
+      const dstKey = e.dest!.country || `${Math.round(e.dest!.lat)},${Math.round(e.dest!.lng)}`;
+      const key = `${srcKey}-${dstKey}-${e.source_kind}`;
+      
+      if (!bundles[key]) {
+        bundles[key] = { key, event: e, count: 1 };
+      } else {
+        bundles[key].count += 1;
+        // Keep the latest event data for tooltip/details
+        if (new Date(e.timestamp) > new Date(bundles[key].event.timestamp)) {
+           bundles[key].event = e;
+        }
+      }
+    });
+    return Object.values(bundles);
+  }, [arcEvents]);
+
   return (
     <>
-      {arcEvents.map(event => (
-        <AttackArc key={event.id} event={event} />
+      {bundledArcEvents.map(bundle => (
+        <AttackArc key={bundle.key} event={bundle.event} count={bundle.count} />
       ))}
       {pointEvents.map(event => (
-        <AttackArc key={event.id} event={event} isPointOnly={true} />
+        <AttackArc key={event.id} event={event} isPointOnly={true} count={1} />
       ))}
     </>
   );
