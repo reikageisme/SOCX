@@ -6,6 +6,7 @@ from app.config import settings
 from app.api.endpoints import router as api_router
 from app.api.auth import router as auth_router
 from app.api.assets import router as assets_router
+from app.api.system import router as system_router
 from app.core.websockets import manager
 from app.core.security import verify_token
 import json
@@ -28,6 +29,7 @@ app.add_middleware(
 app.include_router(auth_router, prefix=settings.API_V1_STR, tags=["auth"])
 app.include_router(api_router, prefix=settings.API_V1_STR)
 app.include_router(assets_router, prefix=f"{settings.API_V1_STR}/assets", tags=["assets"])
+app.include_router(system_router, prefix=f"{settings.API_V1_STR}/system", tags=["system"])
 
 @app.websocket("/ws/threat-map")
 async def websocket_endpoint(websocket: WebSocket, token: str = Query(default=None)):

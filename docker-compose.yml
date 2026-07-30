@@ -16,6 +16,7 @@ services:
     volumes:
       - ./backend/data:/app/data
       - ./backend/aegis.db:/app/aegis.db
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
       - redis
       - clickhouse
