@@ -42,6 +42,36 @@ export const Profile = () => {
     }
   };
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    
+    const file = e.target.files[0];
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:8000/api/v1/users/me/avatar', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        setProfile({...profile, avatar_url: data.avatar_url});
+        setSuccess('Avatar updated successfully');
+      } else {
+        const err = await res.json();
+        setError(err.detail || 'Failed to upload avatar');
+      }
+    } catch (err) {
+      setError('Network error during upload');
+    }
+  };
+
   const handleSave = async () => {
     setError('');
     setSuccess('');
@@ -113,16 +143,18 @@ export const Profile = () => {
         {/* Left Column: Avatar & Basic Info */}
         <div className="col-span-1 space-y-6">
           <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-6 flex flex-col items-center">
-            <div className="relative mb-4 group">
+            <div className="relative mb-4 group w-32 h-32 rounded-full border-4 border-slate-800 flex-shrink-0">
               <img 
-                src={profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.username}&background=random`} 
+                src={profile.avatar_url ? `http://localhost:8000${profile.avatar_url}` : `https://ui-avatars.com/api/?name=${profile.username}&background=random`} 
                 alt="Avatar" 
-                className="w-32 h-32 rounded-full border-4 border-slate-800 object-cover"
+                className="w-full h-full rounded-full object-cover"
               />
               {isEditing && (
-                <div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                  <Camera className="text-white" size={24} />
-                </div>
+                <label className="absolute inset-0 bg-black/60 rounded-full flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                  <Camera className="text-white mb-1" size={24} />
+                  <span className="text-white text-xs font-medium">Change</span>
+                  <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
+                </label>
               )}
             </div>
             <h2 className="text-xl font-bold text-white mb-1">{profile.full_name || profile.username}</h2>
@@ -180,18 +212,6 @@ export const Profile = () => {
                   value={isEditing ? editForm.full_name : (profile.full_name || '')} 
                   onChange={(e) => setEditForm({...editForm, full_name: e.target.value})}
                   disabled={!isEditing}
-                  className={`w-full ${isEditing ? 'bg-slate-800 border-teal-500/50 text-white' : 'bg-slate-800/50 border-slate-700 text-slate-300'} border rounded-lg px-4 py-2 focus:outline-none transition-colors`}
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wider">Avatar URL</label>
-                <input 
-                  type="text" 
-                  value={isEditing ? editForm.avatar_url : (profile.avatar_url || '')} 
-                  onChange={(e) => setEditForm({...editForm, avatar_url: e.target.value})}
-                  disabled={!isEditing}
-                  placeholder="https://example.com/avatar.png"
                   className={`w-full ${isEditing ? 'bg-slate-800 border-teal-500/50 text-white' : 'bg-slate-800/50 border-slate-700 text-slate-300'} border rounded-lg px-4 py-2 focus:outline-none transition-colors`}
                 />
               </div>

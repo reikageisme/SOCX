@@ -1,6 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import List, Optional
+import os
+import shutil
 from pydantic import BaseModel
 import uuid
 
@@ -128,3 +130,29 @@ def update_user_me(user_in: UserUpdate, db: Session = Depends(get_db), current_u
     db.commit()
     db.refresh(user)
     return user
+
+@router.post("/me/avatar")
+def upload_avatar_me(file: UploadFile = File(...), db: Session = Depends(get_db), current_user: str = Depends(get_current_user)):
+    user = db.query(User).filter(User.username == current_user).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    file_ext = os.path.splitext(file.filename)[1]
+    if file_ext.lower() not in ['.jpg', '.jpeg', '.png', '.gif']:
+        raise HTTPException(status_code=400, detail="Invalid file type. Only JPG, PNG, GIF are allowed.")
+        
+    filename = f"{user.id}{file_ext}"
+    filepath = os.path.join("uploads", "avatars", filename)
+    
+    with open(filepath, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    # Assuming backend runs on port 8000 and the frontend accesses it via localhost:8000 or the reverse proxy
+    # We store the relative path and let the frontend prefix it, or store the absolute path.
+    # It's better to store relative path or standard URL path so it works everywhere.
+    avatar_url = f"/uploads/avatars/{filename}"
+    user.avatar_url = avatar_url
+    db.commit()
+    db.refresh(user)
+    
+    return {"avatar_url": avatar_url}

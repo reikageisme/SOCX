@@ -1,7 +1,8 @@
-from fastapi import FastAPI, Depends
-from app.api.endpoints import get_current_user
-from fastapi import WebSocket, WebSocketDisconnect, Query
+from fastapi import FastAPI, Depends, WebSocket, WebSocketDisconnect, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+import os
+from app.api.endpoints import get_current_user
 from app.config import settings
 from app.api.endpoints import router as api_router
 from app.api.auth import router as auth_router
@@ -31,6 +32,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+os.makedirs("uploads", exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 app.include_router(auth_router, prefix=settings.API_V1_STR, tags=["auth"])
 app.include_router(api_router, prefix=settings.API_V1_STR)

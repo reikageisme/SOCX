@@ -1,5 +1,5 @@
-import { Shield, LayoutDashboard, Map, FileText, Settings, ShieldAlert, ChevronLeft, ChevronRight, AlertTriangle, Server, Network, ShieldCheck, ActivitySquare, Users, User, Globe } from 'lucide-react';
-import { NavLink } from 'react-router-dom';
+import { Shield, LayoutDashboard, Map, FileText, Settings, ShieldAlert, ChevronLeft, ChevronRight, AlertTriangle, Server, Network, ShieldCheck, ActivitySquare, Users, User, Globe, LogOut } from 'lucide-react';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 
 const navItems = [
@@ -18,7 +18,13 @@ const navItems = [
 ];
 
 export const Sidebar = ({ isCollapsed, toggleSidebar }: { isCollapsed: boolean, toggleSidebar: () => void }) => {
-  const { userRole } = useStore();
+  const { userRole, setToken } = useStore();
+  const navigate = useNavigate();
+  
+  const handleLogout = () => {
+    setToken(null);
+    navigate('/login');
+  };
   return (
     <div className={`${isCollapsed ? 'w-20' : 'w-64'} transition-all duration-300 bg-soc-card h-screen border-r border-gray-800 flex flex-col relative`}>
       <button 
@@ -67,8 +73,18 @@ export const Sidebar = ({ isCollapsed, toggleSidebar }: { isCollapsed: boolean, 
           </NavLink>
         )}
       </nav>
-      <div className="p-4 border-t border-gray-800 text-xs text-center text-soc-muted truncate">
-        {isCollapsed ? 'v1.0' : 'ACS v1.0.0 • ACEDA'}
+      <div className="p-4 border-t border-gray-800 flex flex-col gap-2">
+        <button 
+          onClick={handleLogout}
+          className={`flex items-center gap-3 px-4 py-2 w-full text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors ${isCollapsed ? 'justify-center px-0' : ''}`}
+          title={isCollapsed ? "Logout" : undefined}
+        >
+          <LogOut className="w-5 h-5 shrink-0" />
+          {!isCollapsed && <span className="font-medium whitespace-nowrap">Logout</span>}
+        </button>
+        <div className="text-xs text-center text-soc-muted truncate mt-2">
+          {isCollapsed ? 'v1.0' : 'ACS v1.0.0 • ACEDA'}
+        </div>
       </div>
     </div>
   );
