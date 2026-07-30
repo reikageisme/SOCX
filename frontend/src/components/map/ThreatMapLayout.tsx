@@ -10,6 +10,7 @@ export interface Coordinates {
   lng: number;
   country: string;
   query?: string;
+  is_local?: boolean;
 }
 
 export interface ThreatEvent {
@@ -28,10 +29,19 @@ export interface ThreatEvent {
   _receivedAt?: number;
 }
 
-export const ThreatMapLayout: React.FC = () => {
-  const [events, setEvents] = useState<ThreatEvent[]>([]);
-  const { wsConnected, threatEvents: storeEvents } = useStore();
+// ── Display refresh interval (ms) — controls how often the map re-renders.
+// 333ms ≈ 3 FPS for the React reconciliation layer.  The Canvas animation
+// loop inside AttackCanvasLayer runs at full 60 FPS independently.
+const DISPLAY_REFRESH_MS = 333;
+const EVENT_TTL_MS = 10_000;
 
+export const ThreatMapLayout: React.FC = () => {
+  // ── Data state (updated every WS flush = ~100ms) ────────────────────────
+  const { wsConnected, threatEvents: storeEvents } = useStore();
+  const receivedMap = useRef<Record<string, number>>({});
+
+  // ── Display state (throttled to ~3 FPS) ─────────────────────────────────
+  const [displayEvents, setDisplayEvents] = useState<ThreatEvent[]>([]);
   const [totalAttacks, setTotalAttacks] = useState(0);
   const [isStatsCollapsed, setIsStatsCollapsed] = useState(false);
   const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
@@ -41,39 +51,47 @@ export const ThreatMapLayout: React.FC = () => {
     'malicious_ip', 'Phishing', 'Exploit', 'DDoS', 'SQL Injection'
   ]);
 
-  const receivedMap = useRef<Record<string, number>>({});
+  // ── Ref holding the latest processed events (data layer) ────────────────
+  const dataEventsRef = useRef<ThreatEvent[]>([]);
 
+  // Process incoming store events → stamp _receivedAt, update data ref
   useEffect(() => {
     if (storeEvents.length > 0) {
       const now = Date.now();
-      const updatedEvents = storeEvents.slice(0, 100).map(e => {
+      const processed = storeEvents.slice(0, 100).map(e => {
         if (!receivedMap.current[e.id]) {
           receivedMap.current[e.id] = now;
         }
         return { ...e, _receivedAt: receivedMap.current[e.id] };
       });
       
-      setEvents(updatedEvents.filter(e => now - e._receivedAt! <= 10000));
+      dataEventsRef.current = processed.filter(e => now - e._receivedAt! <= EVENT_TTL_MS);
       setTotalAttacks(storeEvents.length);
 
+      // Cleanup receivedMap for events no longer in store
       const storeIds = new Set(storeEvents.map(e => e.id));
-      Object.keys(receivedMap.current).forEach(id => {
+      for (const id of Object.keys(receivedMap.current)) {
         if (!storeIds.has(id)) {
           delete receivedMap.current[id];
         }
-      });
+      }
     } else {
-      setEvents([]);
+      dataEventsRef.current = [];
       setTotalAttacks(0);
       receivedMap.current = {};
     }
   }, [storeEvents]);
 
+  // ── Double-buffer: flush data → display at fixed interval (~3 FPS) ──────
   useEffect(() => {
     const interval = setInterval(() => {
       const now = Date.now();
-      setEvents(prev => prev.filter(e => e._receivedAt && (now - e._receivedAt <= 10000)));
-    }, 2000);
+      // Apply TTL filter on the display flush
+      const live = dataEventsRef.current.filter(
+        e => e._receivedAt && (now - e._receivedAt <= EVENT_TTL_MS)
+      );
+      setDisplayEvents(live);
+    }, DISPLAY_REFRESH_MS);
     return () => clearInterval(interval);
   }, []);
 
@@ -89,7 +107,7 @@ export const ThreatMapLayout: React.FC = () => {
             </div>
           </div>
         )}
-        <MapCore events={events} activeLayers={activeLayers} />
+        <MapCore events={displayEvents} activeLayers={activeLayers} />
       </div>
 
       {/* Floating Header */}
@@ -102,7 +120,7 @@ export const ThreatMapLayout: React.FC = () => {
         {/* Left Panel */}
         <div className="pointer-events-auto h-full flex flex-col pt-4 pb-8 pl-4">
           <LeftPanel 
-            events={events} 
+            events={displayEvents} 
             activeLayers={activeLayers} 
             setActiveLayers={setActiveLayers}
             isCollapsed={isLeftCollapsed}
@@ -113,7 +131,7 @@ export const ThreatMapLayout: React.FC = () => {
         {/* Right Panel */}
         <div className="pointer-events-auto h-full flex flex-col pt-4 pb-8 pr-4">
           <StatsPanel 
-            events={events} 
+            events={displayEvents} 
             isCollapsed={isStatsCollapsed} 
             onToggle={() => setIsStatsCollapsed(!isStatsCollapsed)} 
           />

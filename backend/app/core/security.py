@@ -1,8 +1,11 @@
 from datetime import datetime, timedelta
-from typing import Any, Union
-from jose import jwt
+from typing import Any, Optional, Union
+from jose import jwt, JWTError
 import bcrypt
+import logging
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
@@ -22,3 +25,25 @@ def create_access_token(
     to_encode = {"exp": expire, "sub": str(subject)}
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
+
+def verify_token(token: str) -> Optional[str]:
+    """
+    Verify a JWT token and return the username (sub claim).
+    Returns None if the token is invalid, expired, or malformed.
+    """
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(
+            token,
+            settings.SECRET_KEY,
+            algorithms=[settings.ALGORITHM]
+        )
+        username: str = payload.get("sub")
+        if username is None:
+            logger.warning("Token missing 'sub' claim")
+            return None
+        return username
+    except JWTError as e:
+        logger.warning(f"Token verification failed: {e}")
+        return None

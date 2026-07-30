@@ -9,6 +9,7 @@ from typing import Dict, Any
 from app.core.websockets import manager
 from app.core.geoip import geoip_service
 from app.core.threat_intel import threat_intel_service
+from app.core.clickhouse import clickhouse_storage
 
 logger = logging.getLogger(__name__)
 
@@ -214,7 +215,7 @@ class Pipeline:
         }
 
     async def _throttle_and_broadcast(self, event: Dict[str, Any]):
-        """Broadcast event to WebSocket with throttling"""
+        """Broadcast event to WebSocket with throttling, and store in ClickHouse."""
         current_time = time.time()
         
         # Reset window every second
@@ -228,5 +229,11 @@ class Pipeline:
             logger.info(f"Event broadcast to {len(manager.active_connections)} clients")
         else:
             logger.warning("Event throttled (rate limit reached)")
+
+        # Store ALL events in ClickHouse (even throttled ones) for compliance
+        try:
+            clickhouse_storage.store_event(event)
+        except Exception as e:
+            logger.debug(f"ClickHouse store skipped: {e}")
 
 pipeline = Pipeline()

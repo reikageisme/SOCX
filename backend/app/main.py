@@ -1,12 +1,16 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.api.endpoints import router as api_router
 from app.api.auth import router as auth_router
 from app.api.assets import router as assets_router
 from app.core.websockets import manager
+from app.core.security import verify_token
 import json
 import asyncio
+import logging
+
+ws_logger = logging.getLogger("websocket.auth")
 
 app = FastAPI(title=settings.PROJECT_NAME)
 
@@ -24,25 +28,53 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 app.include_router(assets_router, prefix=f"{settings.API_V1_STR}/assets", tags=["assets"])
 
 @app.websocket("/ws/threat-map")
-async def websocket_endpoint(websocket: WebSocket):
-    await manager.connect(websocket)
+async def websocket_endpoint(websocket: WebSocket, token: str = Query(default=None)):
+    # ── Step 1: Verify token BEFORE accepting the connection ──
+    username = verify_token(token)
+    if username is None:
+        ws_logger.warning(
+            f"[WS] Rejected connection: invalid/missing token from {websocket.client}"
+        )
+        await websocket.close(code=4001, reason="Authentication required")
+        return
+
+    # ── Step 2: Per-user connection rate limit ──
+    if not manager.can_connect(username):
+        ws_logger.warning(
+            f"[WS] Rejected connection: user '{username}' exceeded max connections"
+        )
+        await websocket.close(code=4002, reason="Too many connections")
+        return
+
+    # ── Step 3: Accept and track ──
+    await manager.connect(websocket, username=username)
+    ws_logger.info(f"[WS] User '{username}' authenticated and connected")
+
     try:
         while True:
             data = await websocket.receive_text()
             if data == "ping":
-                await manager.send_personal_message(json.dumps({"type": "pong", "message": "Connection active"}), websocket)
+                await manager.send_personal_message(
+                    json.dumps({"type": "pong", "message": "Connection active"}),
+                    websocket
+                )
             else:
-                await manager.send_personal_message(f"Message text was: {data}", websocket)
+                await manager.send_personal_message(
+                    f"Message text was: {data}", websocket
+                )
     except WebSocketDisconnect as e:
         manager.disconnect(websocket)
-        print(f"[WS] Client disconnected. Code: {e.code}, Reason: {e.reason}")
+        ws_logger.info(
+            f"[WS] User '{username}' disconnected. Code: {e.code}, Reason: {e.reason}"
+        )
     except Exception as e:
         manager.disconnect(websocket)
-        print(f"[WS] Client error: {e}")
+        ws_logger.error(f"[WS] User '{username}' error: {e}")
 
 from app.core.geoip import geoip_service
 from app.core.threat_intel import threat_intel_service
 from app.core.pipeline import pipeline
+from app.core.clickhouse import clickhouse_storage
 from app.core.db import engine, Base
 from app.models.incident import Incident, ActionRequest
 from app.core.response.executor import playbook_executor
@@ -256,6 +288,32 @@ def reject_action(action_id: str):
         return {"status": "success"}
     return {"status": "failed", "message": "Action not found or already processed"}
 
+# ── ClickHouse historical event queries ────────────────────────────────────
+
+@app.get("/api/v1/events/history")
+def get_event_history(
+    minutes: int = 60,
+    source_country: str = None,
+    dest_country: str = None,
+    event_type: str = None,
+    limit: int = 500,
+):
+    """Query historical threat events from ClickHouse."""
+    events = clickhouse_storage.query_events(
+        minutes=min(minutes, 10080),  # Max 7 days
+        source_country=source_country,
+        dest_country=dest_country,
+        event_type=event_type,
+        limit=min(limit, 5000),
+    )
+    return {"events": events, "count": len(events)}
+
+@app.get("/api/v1/events/stats")
+def get_event_stats(minutes: int = 60):
+    """Get aggregated attack statistics from ClickHouse."""
+    stats = clickhouse_storage.get_stats(minutes=min(minutes, 10080))
+    return {"stats": stats}
+
 @app.on_event("startup")
 async def startup_event():
     # Initialize DB
@@ -264,11 +322,15 @@ async def startup_event():
     await geoip_service.initialize()
     pipeline.start()
     await threat_intel_service.initialize()
+    
+    # Initialize ClickHouse (non-blocking — degrades gracefully if unavailable)
+    await clickhouse_storage.initialize(host="clickhouse", port=8123)
 
 @app.on_event("shutdown")
 async def shutdown_event():
     pipeline.stop()
     geoip_service.close()
+    clickhouse_storage.close()
 
 if __name__ == "__main__":
     import uvicorn

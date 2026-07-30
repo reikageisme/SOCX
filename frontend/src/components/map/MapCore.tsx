@@ -1,64 +1,139 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { MapContainer, GeoJSON, useMapEvent } from 'react-leaflet';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { MapContainer, GeoJSON, useMap, useMapEvent } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { ThreatEvent } from './ThreatMapLayout';
-import { AttackArc } from './AttackArc';
+import { AttackCanvasLayer, type CanvasArcEvent } from './AttackCanvasLayer';
 
-const EventRenderer: React.FC<{ events: ThreatEvent[], activeLayers: string[] }> = ({ events, activeLayers }) => {
-  const [zoom, setZoom] = useState(2);
-  useMapEvent('zoomend', (e) => {
-    setZoom(e.target.getZoom());
-  });
+// ── Web Worker (Vite supports ?worker imports) ────────────────────────────────
+import EventWorker from '../../workers/eventProcessor.worker?worker';
 
-  const getEventLayer = (e: ThreatEvent) => {
-    if (e.type === 'malicious_ip' || e.type === 'Malware') return 'malicious_ip';
-    return e.type;
-  };
+// ── EventRenderer — offloads bundling to a Web Worker ─────────────────────────
 
-  const visibleEvents = events.filter(e => {
+const EventRenderer: React.FC<{
+  events: ThreatEvent[];
+  activeLayers: string[];
+}> = React.memo(({ events, activeLayers }) => {
+  const map = useMap();
+  const [canvasArcs, setCanvasArcs] = useState<CanvasArcEvent[]>([]);
+  const workerRef = useRef<Worker | null>(null);
+
+  // Create Web Worker once
+  useEffect(() => {
+    try {
+      workerRef.current = new EventWorker();
+      workerRef.current.onmessage = (e: MessageEvent) => {
+        if (e.data.type === 'result') {
+          setCanvasArcs(e.data.arcs);
+        }
+      };
+    } catch (err) {
+      console.warn('[MapCore] Web Worker not available, falling back to main thread', err);
+    }
+    return () => {
+      workerRef.current?.terminate();
+      workerRef.current = null;
+    };
+  }, []);
+
+  // Get bounds for viewport culling
+  const boundsRef = useRef(map.getBounds());
+  useMapEvent('moveend', () => { boundsRef.current = map.getBounds(); });
+  useMapEvent('zoomend', () => { boundsRef.current = map.getBounds(); });
+
+  // Post work to worker when events/layers change
+  useEffect(() => {
+    const b = boundsRef.current;
+    const boundsData = {
+      south: b.getSouth(),
+      west: b.getWest(),
+      north: b.getNorth(),
+      east: b.getEast(),
+    };
+
+    if (workerRef.current) {
+      // Offload to worker
+      workerRef.current.postMessage({
+        type: 'process',
+        events,
+        activeLayers,
+        bounds: boundsData,
+      });
+    } else {
+      // Main-thread fallback (same logic as worker)
+      const arcs = processEventsMainThread(events, activeLayers, boundsData);
+      setCanvasArcs(arcs);
+    }
+  }, [events, activeLayers]);
+
+  return <AttackCanvasLayer arcs={canvasArcs} />;
+}, (prev, next) => {
+  return prev.events === next.events && prev.activeLayers === next.activeLayers;
+});
+
+// ── Main-thread fallback when Worker not available ────────────────────────────
+
+function processEventsMainThread(
+  events: ThreatEvent[],
+  activeLayers: string[],
+  bounds: { south: number; west: number; north: number; east: number }
+): CanvasArcEvent[] {
+  const getLayer = (type: string) =>
+    type === 'malicious_ip' || type === 'Malware' ? 'malicious_ip' : type;
+
+  const visible = events.filter(e => {
     if (e.source.is_local) return false;
-    if (!activeLayers || activeLayers.length === 0) return true; 
-    const layer = getEventLayer(e);
-    return activeLayers.includes(layer);
+    if (!activeLayers || activeLayers.length === 0) return true;
+    return activeLayers.includes(getLayer(e.type));
   });
 
-  const arcEvents = visibleEvents.filter(e => e.dest);
-  const pointEvents = visibleEvents.filter(e => !e.dest);
+  const pad = 0.3;
+  const latRange = (bounds.north - bounds.south) * pad;
+  const lngRange = (bounds.east - bounds.west) * pad;
+  const inView = visible.filter(e => {
+    const srcIn = e.source?.lat && e.source?.lng
+      ? e.source.lat >= bounds.south - latRange && e.source.lat <= bounds.north + latRange &&
+        e.source.lng >= bounds.west - lngRange && e.source.lng <= bounds.east + lngRange
+      : false;
+    const dstIn = e.dest?.lat && e.dest?.lng
+      ? e.dest.lat >= bounds.south - latRange && e.dest.lat <= bounds.north + latRange &&
+        e.dest.lng >= bounds.west - lngRange && e.dest.lng <= bounds.east + lngRange
+      : false;
+    return srcIn || dstIn || !e.dest;
+  });
 
-  // Bundle arcs that have the same source and destination to prevent SVG lag
-  const bundledArcEvents = useMemo(() => {
-    const bundles: Record<string, { key: string; event: ThreatEvent; count: number }> = {};
-    arcEvents.forEach(e => {
-      // Group by country or rounded coordinates if country is missing, and source_kind to separate colors
+  const bundles: Record<string, CanvasArcEvent> = {};
+  for (const e of inView) {
+    if (e.dest) {
       const srcKey = e.source.country || `${Math.round(e.source.lat)},${Math.round(e.source.lng)}`;
-      const dstKey = e.dest!.country || `${Math.round(e.dest!.lat)},${Math.round(e.dest!.lng)}`;
-      const key = `${srcKey}-${dstKey}-${e.source_kind}`;
-      
+      const dstKey = e.dest.country || `${Math.round(e.dest.lat)},${Math.round(e.dest.lng)}`;
+      const kind = e.source_kind || 'local_sensor';
+      const key = `${srcKey}::${dstKey}::${kind}`;
       if (!bundles[key]) {
-        bundles[key] = { key, event: e, count: 1 };
+        bundles[key] = {
+          key, sourceLat: e.source.lat, sourceLng: e.source.lng,
+          destLat: e.dest.lat, destLng: e.dest.lng, sourceKind: kind,
+          count: 1, type: e.type, receivedAt: (e as any)._receivedAt || Date.now(),
+          isPointOnly: false,
+        };
       } else {
         bundles[key].count += 1;
-        // Keep the latest event data for tooltip/details
-        if (new Date(e.timestamp) > new Date(bundles[key].event.timestamp)) {
-           bundles[key].event = e;
-        }
+        const ra = (e as any)._receivedAt || Date.now();
+        if (ra > bundles[key].receivedAt) bundles[key].receivedAt = ra;
       }
-    });
-    return Object.values(bundles);
-  }, [arcEvents]);
+    } else {
+      bundles[`pt::${e.id}`] = {
+        key: `pt::${e.id}`, sourceLat: e.source?.lat || 0, sourceLng: e.source?.lng || 0,
+        destLat: 0, destLng: 0, sourceKind: e.source_kind || 'local_sensor',
+        count: 1, type: e.type, receivedAt: (e as any)._receivedAt || Date.now(),
+        isPointOnly: true,
+      };
+    }
+  }
+  return Object.values(bundles);
+}
 
-  return (
-    <>
-      {bundledArcEvents.map(bundle => (
-        <AttackArc key={bundle.key} event={bundle.event} count={bundle.count} />
-      ))}
-      {pointEvents.map(event => (
-        <AttackArc key={event.id} event={event} isPointOnly={true} count={1} />
-      ))}
-    </>
-  );
-};
+// ── MapCore ───────────────────────────────────────────────────────────────────
 
 export const MapCore = React.memo(({ events, activeLayers = [] }: { events: ThreatEvent[], activeLayers?: string[] }) => {
   const [geoData, setGeoData] = useState<any>(null);
@@ -82,7 +157,7 @@ export const MapCore = React.memo(({ events, activeLayers = [] }: { events: Thre
     renderer: canvasRenderer
   }), [canvasRenderer]);
 
-  const onEachFeature = (feature: any, layer: any) => {
+  const onEachFeature = useCallback((feature: any, layer: any) => {
     if (feature.properties && feature.properties.ADMIN) {
       layer.bindTooltip(feature.properties.ADMIN, {
         sticky: true,
@@ -104,7 +179,7 @@ export const MapCore = React.memo(({ events, activeLayers = [] }: { events: Thre
         }
       });
     }
-  };
+  }, [geoStyle]);
 
   return (
     <div className="absolute inset-0 w-full h-full bg-[#050810] z-0 overflow-hidden" 
@@ -119,16 +194,6 @@ export const MapCore = React.memo(({ events, activeLayers = [] }: { events: Thre
       <style>{`
         .leaflet-container {
           background: transparent !important;
-        }
-        .cyan-glow {
-          filter: drop-shadow(0 0 6px #06b6d4);
-          will-change: filter;
-          transform: translateZ(0);
-        }
-        .purple-glow {
-          filter: drop-shadow(0 0 6px #c084fc);
-          will-change: filter;
-          transform: translateZ(0);
         }
         .custom-tooltip {
           background-color: transparent !important;

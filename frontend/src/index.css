@@ -33,47 +33,13 @@ body {
   @apply bg-gray-600;
 }
 
-.attack-arc-animation {
-  stroke-dasharray: 4 12;
-  animation: dash 1.5s linear infinite;
-  opacity: 0.4;
-}
-
-.arc-real-base {
-  opacity: 0.6;
-}
-
-.attack-particle {
-  stroke-dasharray: 2 500;
-  stroke-dashoffset: 500;
-  animation: particleDash 0.8s ease-in-out infinite;
-  stroke-linecap: round;
-  will-change: stroke-dashoffset;
-  transform: translateZ(0);
-}
-
-@keyframes dash {
-  to {
-    stroke-dashoffset: -16;
-  }
-}
-
-@keyframes particleDash {
-  0% { stroke-dashoffset: 500; }
-  100% { stroke-dashoffset: 0; }
-}
-
-.target-pulse-animation {
-  animation: targetPulse 1.5s cubic-bezier(0.25, 0.8, 0.25, 1) infinite;
-  transform-origin: center;
-  fill: transparent;
-  stroke-width: 2;
-}
-
-@keyframes targetPulse {
-  0% { transform: scale(0.1); opacity: 1; stroke-width: 3; }
-  100% { transform: scale(4); opacity: 0; stroke-width: 0.5; }
-}
+/* ── Map-related CSS ───────────────────────────────────────────────────────
+   All attack arc/particle/pulse animations are now handled by the Canvas
+   layer (AttackCanvasLayer.tsx) via requestAnimationFrame.
+   The old SVG-based CSS classes (.attack-arc-animation, .attack-particle,
+   .target-pulse-animation, .arc-real-base, .attack-arc-fade,
+   .global-threat-pulse) have been removed.
+   ──────────────────────────────────────────────────────────────────────── */
 
 .custom-scrollbar::-webkit-scrollbar {
   width: 4px;
@@ -86,19 +52,4 @@ body {
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background: #374151;
   border-radius: 4px;
-}
-
-.global-threat-pulse {
-  animation: targetPulse 2s ease-in-out infinite alternate;
-  transform-origin: center;
-}
-
-.attack-arc-fade {
-  animation: arcFadeOut 10s ease-in forwards;
-}
-
-@keyframes arcFadeOut {
-  0% { opacity: 1; }
-  70% { opacity: 0.8; }
-  100% { opacity: 0; }
 }

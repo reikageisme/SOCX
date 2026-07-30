@@ -3,11 +3,17 @@ import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { useWebSocket } from '../../hooks/useWebSocket';
+import { useStore } from '../../store/useStore';
 
 export const Layout = () => {
-  // Initialize WebSocket connection at the layout level
+  // Get JWT token from store to authenticate WebSocket
+  const token = useStore((state) => state.token);
+  
+  // Build authenticated WebSocket URL
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const wsUrl = `${protocol}//${window.location.host}/ws/threat-map`;
+  const wsUrl = token
+    ? `${protocol}//${window.location.host}/ws/threat-map?token=${encodeURIComponent(token)}`
+    : null; // Don't connect if not authenticated
   useWebSocket(wsUrl);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 

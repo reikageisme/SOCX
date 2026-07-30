@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useStore } from '../store/useStore';
 
-export const useWebSocket = (url: string) => {
+export const useWebSocket = (url: string | null) => {
   const ws = useRef<WebSocket | null>(null);
   const reconnectAttempts = useRef(0);
   const reconnectTimeout = useRef<number | null>(null);
@@ -30,6 +30,12 @@ export const useWebSocket = (url: string) => {
   }, [addThreatEvents]);
 
   useEffect(() => {
+    // Don't connect if no URL (user not authenticated)
+    if (!url) {
+      setWsConnected(false);
+      return;
+    }
+
     isComponentMounted.current = true;
 
     const connect = () => {
@@ -38,7 +44,7 @@ export const useWebSocket = (url: string) => {
         return;
       }
 
-      console.log(`[WS] Connecting to ${url}...`);
+      console.log(`[WS] Connecting to ${url.replace(/token=[^&]+/, 'token=***')}...`);
       const socket = new WebSocket(url);
       ws.current = socket;
 
@@ -47,7 +53,7 @@ export const useWebSocket = (url: string) => {
           socket.close();
           return;
         }
-        console.log('[WS] Connected successfully');
+        console.log('[WS] Connected successfully (authenticated)');
         setWsConnected(true);
         reconnectAttempts.current = 0; // Reset backoff on success
       };
@@ -55,12 +61,9 @@ export const useWebSocket = (url: string) => {
       socket.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          console.log('[WS] Nhận dữ liệu:', data);
           
-          // Compatible with real pipeline event format (which doesn't wrap in "type": "threat_alert" anymore)
-          // We check if it has source and type, which indicates a threat event from pipeline
+          // Compatible with real pipeline event format
           if (data.source && data.type) {
-            console.log('[WS] Payload hợp lệ, đang thêm vào bộ đệm!');
             eventBuffer.current.push({
               id: data.id || crypto.randomUUID(),
               source_kind: data.source_kind || 'local_sensor',
@@ -76,7 +79,6 @@ export const useWebSocket = (url: string) => {
               metadata: data.metadata
             });
           } else if (data.type === 'notification') {
-            console.log('[WS] Nhận Notification:', data.data);
             useStore.getState().addNotification({
               id: data.data.id,
               title: data.data.title,
@@ -99,6 +101,16 @@ export const useWebSocket = (url: string) => {
         console.log(`[WS] Disconnected. Code: ${event.code}, Reason: ${event.reason || 'None'}`);
         setWsConnected(false);
         ws.current = null;
+
+        // Don't reconnect on auth failures (4001 = no/invalid token, 4002 = rate limit)
+        if (event.code === 4001) {
+          console.error('[WS] Authentication failed. Not reconnecting.');
+          return;
+        }
+        if (event.code === 4002) {
+          console.error('[WS] Too many connections. Not reconnecting.');
+          return;
+        }
 
         // Reconnect logic with exponential backoff (max 30s)
         const backoff = Math.min(1000 * Math.pow(2, reconnectAttempts.current), 30000);
@@ -134,7 +146,7 @@ export const useWebSocket = (url: string) => {
         ws.current = null;
       }
     };
-  }, [url]); // Only recreate if URL changes, ignore store actions
+  }, [url]); // Reconnect if URL (including token) changes
 
   // Setup Keep-alive Ping every 30s
   useEffect(() => {
