@@ -1,14 +1,17 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import mkcert from 'vite-plugin-mkcert'
 
 // https://vite.dev/config/
-export default defineConfig(({ command }) => {
+export default defineConfig(async ({ command }) => {
+  const plugins: any[] = [react()];
+  
+  if (command === 'serve') {
+    const mkcert = (await import('vite-plugin-mkcert')).default;
+    plugins.push(mkcert({ hosts: ['localhost', '192.168.56.132'] }));
+  }
+
   return {
-    plugins: [
-      react(),
-      command === 'serve' ? mkcert({ hosts: ['localhost', '192.168.56.132'] }) : undefined
-    ],
+    plugins,
     server: {
       host: '0.0.0.0'
     }
