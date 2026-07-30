@@ -158,8 +158,9 @@ export const MapCore = React.memo(({ events, activeLayers = [] }: { events: Thre
   }), [canvasRenderer]);
 
   const onEachFeature = useCallback((feature: any, layer: any) => {
-    if (feature.properties && feature.properties.ADMIN) {
-      layer.bindTooltip(feature.properties.ADMIN, {
+    const countryName = feature.properties?.name || feature.properties?.ADMIN;
+    if (countryName) {
+      layer.bindTooltip(countryName, {
         sticky: true,
         className: 'custom-tooltip',
         direction: 'auto',

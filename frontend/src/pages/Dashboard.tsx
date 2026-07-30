@@ -1,7 +1,6 @@
 import { useProxmoxNodes, useProxmoxVms, useDashboardMetrics } from '../hooks/useProxmox';
 import { useStore } from '../store/useStore';
 import { Server, Cpu, HardDrive, ShieldAlert, Activity } from 'lucide-react';
-import { DashboardMap } from '../components/map/DashboardMap';
 import { useSlaMetrics } from '../hooks/useAnalytics';
 import { Clock, Timer, Play, Square, RefreshCw, Plus } from 'lucide-react';
 import { apiFetch } from '../lib/api';
@@ -101,9 +100,6 @@ export const Dashboard = () => {
 
   return (
     <div className="space-y-6">
-      {/* Interactive Threat Map */}
-      <DashboardMap />
-      
       {/* SLA & Response Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* MTTD Card */}
