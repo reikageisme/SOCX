@@ -19,6 +19,7 @@ interface Incident {
 export const Incidents = () => {
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [draggedId, setDraggedId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchIncidents = async () => {
@@ -57,6 +58,50 @@ export const Incidents = () => {
     }
   };
 
+  const handleDragStart = (e: React.DragEvent, id: string) => {
+    setDraggedId(id);
+    e.dataTransfer.effectAllowed = 'move';
+    // Small delay to make dragged item look better
+    setTimeout(() => {
+      (e.target as HTMLElement).classList.add('opacity-50');
+    }, 0);
+  };
+
+  const handleDragEnd = (e: React.DragEvent) => {
+    (e.target as HTMLElement).classList.remove('opacity-50');
+    setDraggedId(null);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = async (e: React.DragEvent, newStatus: string) => {
+    e.preventDefault();
+    if (!draggedId) return;
+
+    // Optimistic update
+    setIncidents(prev => prev.map(inc => 
+      inc.id === draggedId ? { ...inc, status: newStatus } : inc
+    ));
+
+    try {
+      const token = localStorage.getItem('token') || '';
+      await apiFetch(`/api/v1/incidents/${draggedId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+    } catch (err) {
+      console.error('Failed to update incident status', err);
+      // Revert if API is actually used and fails
+    }
+  };
+
   const renderKanbanColumn = (status: string, title: string) => {
     const columnIncidents = incidents.filter(i => (i.status || 'New').toLowerCase() === status.toLowerCase());
     return (
@@ -69,11 +114,18 @@ export const Incidents = () => {
             </span>
           </h2>
         </div>
-        <div className="p-3 flex flex-col gap-3 flex-1 overflow-y-auto max-h-[calc(100vh-200px)]">
+        <div 
+          className="p-3 flex flex-col gap-3 flex-1 overflow-y-auto max-h-[calc(100vh-200px)]"
+          onDragOver={handleDragOver}
+          onDrop={(e) => handleDrop(e, status)}
+        >
           {columnIncidents.map(inc => (
             <div
               key={inc.id}
-              className="bg-soc-dark rounded-lg border border-gray-800 p-3 hover:border-gray-700 transition-colors cursor-pointer"
+              draggable
+              onDragStart={(e) => handleDragStart(e, inc.id)}
+              onDragEnd={handleDragEnd}
+              className="bg-soc-dark rounded-lg border border-gray-800 p-3 hover:border-gray-700 transition-colors cursor-pointer cursor-grab active:cursor-grabbing"
               onClick={() => setExpandedId(expandedId === inc.id ? null : inc.id)}
             >
               <div className="flex items-start justify-between mb-2">

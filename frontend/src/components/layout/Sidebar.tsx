@@ -1,5 +1,6 @@
-import { Shield, LayoutDashboard, Map, FileText, Settings, ShieldAlert, ChevronLeft, ChevronRight, AlertTriangle, Server, Network, ShieldCheck, ActivitySquare } from 'lucide-react';
+import { Shield, LayoutDashboard, Map, FileText, Settings, ShieldAlert, ChevronLeft, ChevronRight, AlertTriangle, Server, Network, ShieldCheck, ActivitySquare, Users, User, Globe } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
+import { useStore } from '../../store/useStore';
 
 const navItems = [
   { name: 'Dashboard', path: '/', icon: LayoutDashboard },
@@ -7,14 +8,17 @@ const navItems = [
   { name: 'Threat Map', path: '/map', icon: Map },
   { name: 'Assets', path: '/assets', icon: Server },
   { name: 'Incidents', path: '/incidents', icon: AlertTriangle },
+  { name: 'Threat Intel', path: '/intel', icon: Globe },
   { name: 'Pentest & Reports', path: '/pentest', icon: ShieldCheck },
   { name: 'Forensics', path: '/forensics', icon: ActivitySquare },
   { name: 'Rules', path: '/rules', icon: ShieldAlert },
   { name: 'Logs', path: '/logs', icon: FileText },
+  { name: 'Profile', path: '/profile', icon: User },
   { name: 'Settings', path: '/settings', icon: Settings },
 ];
 
 export const Sidebar = ({ isCollapsed, toggleSidebar }: { isCollapsed: boolean, toggleSidebar: () => void }) => {
+  const { userRole } = useStore();
   return (
     <div className={`${isCollapsed ? 'w-20' : 'w-64'} transition-all duration-300 bg-soc-card h-screen border-r border-gray-800 flex flex-col relative`}>
       <button 
@@ -46,6 +50,22 @@ export const Sidebar = ({ isCollapsed, toggleSidebar }: { isCollapsed: boolean, 
             {!isCollapsed && <span className="font-medium whitespace-nowrap">{item.name}</span>}
           </NavLink>
         ))}
+        {userRole === 'superadmin' && (
+          <NavLink
+            to="/users"
+            title={isCollapsed ? "User Management" : undefined}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                isActive 
+                  ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' 
+                  : 'text-rose-400/70 hover:bg-rose-500/10 hover:text-rose-400'
+              } ${isCollapsed ? 'justify-center px-0' : ''}`
+            }
+          >
+            <Users className="w-5 h-5 shrink-0" />
+            {!isCollapsed && <span className="font-medium whitespace-nowrap">User Management</span>}
+          </NavLink>
+        )}
       </nav>
       <div className="p-4 border-t border-gray-800 text-xs text-center text-soc-muted truncate">
         {isCollapsed ? 'v1.0' : 'ACS v1.0.0 • ACEDA'}

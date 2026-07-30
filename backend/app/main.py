@@ -11,6 +11,7 @@ from app.api.hunt import router as hunt_router
 from app.api.analytics import router as analytics_router
 from app.api.pentest import router as pentest_router
 from app.api.forensics import router as forensics_router
+from app.api.users import router as users_router
 from app.core.websockets import manager
 from app.core.security import verify_token
 import json
@@ -38,6 +39,7 @@ app.include_router(hunt_router, prefix=f"{settings.API_V1_STR}/hunt", tags=["hun
 app.include_router(analytics_router, prefix=f"{settings.API_V1_STR}/analytics", tags=["analytics"])
 app.include_router(pentest_router, prefix=f"{settings.API_V1_STR}/pentest", tags=["pentest"])
 app.include_router(forensics_router, prefix=f"{settings.API_V1_STR}/forensics", tags=["forensics"])
+app.include_router(users_router, prefix=f"{settings.API_V1_STR}/users", tags=["users"])
 
 @app.websocket("/ws/threat-map")
 async def websocket_endpoint(websocket: WebSocket, token: str = Query(default=None)):
@@ -333,7 +335,8 @@ async def startup_event():
         logging.getLogger("uvicorn.error").critical("CRITICAL SECURITY WARNING: Default SECRET_KEY or PROXMOX_TOKEN_SECRET detected in production! Please override in .env.")
         
     # Initialize DB
-    Base.metadata.create_all(bind=engine)
+    from app.core.init_db import init_db
+    init_db()
     
     await geoip_service.initialize()
     pipeline.start()

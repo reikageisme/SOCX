@@ -13,6 +13,9 @@ import { Assets } from './pages/Assets';
 import { Incidents } from './pages/Incidents';
 import { Forensics } from './pages/Forensics';
 import { Topology } from './pages/Topology';
+import { UserManagement } from './pages/UserManagement';
+import { Profile } from './pages/Profile';
+import { ThreatIntel } from './pages/ThreatIntel';
 import { useStore } from './store/useStore';
 
 const queryClient = new QueryClient();
@@ -46,6 +49,9 @@ function App() {
             <Route path="settings" element={<SettingsPage />} />
             <Route path="forensics" element={<Forensics />} />
             <Route path="topology" element={<Topology />} />
+            <Route path="users" element={<UserManagement />} />
+            <Route path="profile" element={<Profile />} />
+            <Route path="intel" element={<ThreatIntel />} />
           </Route>
         </Routes>
       </BrowserRouter>
