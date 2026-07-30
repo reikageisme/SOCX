@@ -306,7 +306,7 @@ export const AttackCanvasLayer: React.FC<{ arcs: CanvasArcEvent[] }> = ({ arcs }
         // Create linear gradient from tail to head
         const [headX, headY] = pointAtFraction(points, totalLength, particleT);
         const grad = ctx.createLinearGradient(startX, startY, headX, headY);
-        const colorTransparent = color + '00'; // Append 00 for 0 opacity
+        const colorTransparent = color === COLOR_CYAN ? 'rgba(6, 182, 212, 0)' : 'rgba(192, 132, 252, 0)';
         grad.addColorStop(0, colorTransparent); 
         grad.addColorStop(1, color); 
         
