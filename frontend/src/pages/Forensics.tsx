@@ -116,66 +116,73 @@ export const Forensics = () => {
       )}
 
       {status === 'completed' && results?.stats && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-soc-card rounded-xl p-6 border border-gray-800">
-            <h3 className="text-lg font-bold text-white mb-4">Top Talkers (IPs)</h3>
-            <div className="space-y-4">
-              {Object.entries(results.stats.top_ips).map(([ip, count]: [string, any], idx) => (
-                <div key={ip} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="text-soc-muted font-mono w-4">{idx + 1}.</span>
-                    <Server className="w-4 h-4 text-soc-accent" />
-                    <span className="text-gray-300 font-mono">{ip}</span>
-                  </div>
-                  <span className="bg-black/50 px-3 py-1 rounded-full text-sm text-soc-muted">
-                    {count} packets
-                  </span>
-                </div>
-              ))}
-            </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-soc-card rounded-xl p-6 border border-gray-800 md:col-span-3 flex justify-between items-center">
+             <div className="text-xl font-bold text-white">Analysis Complete</div>
+             <div className="text-soc-accent font-mono bg-soc-accent/10 px-4 py-2 rounded-lg border border-soc-accent/20">
+               {results.stats.total_packets} Packets Analyzed
+             </div>
           </div>
 
-          <div className="bg-soc-card rounded-xl p-6 border border-gray-800">
-            <h3 className="text-lg font-bold text-white mb-4">Protocol Distribution</h3>
-            <div className="grid grid-cols-2 gap-4">
-              {Object.entries(results.stats.protocols).map(([proto, count]: [string, any]) => (
-                <div key={proto} className="bg-black/40 border border-gray-800 p-4 rounded-lg flex flex-col items-center justify-center">
-                  <span className="text-2xl font-bold text-white mb-1">{count}</span>
-                  <span className="text-sm font-medium text-soc-accent uppercase tracking-wider">{proto}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="bg-soc-card rounded-xl p-6 border border-gray-800 md:col-span-2">
-            <h3 className="text-lg font-bold text-white mb-4">Extracted Connections</h3>
-            <div className="overflow-x-auto">
+          {/* Extracted IPs (IOCs) */}
+          <div className="bg-soc-card rounded-xl p-6 border border-rose-900/50 shadow-[0_0_15px_rgba(225,29,72,0.05)] md:col-span-2">
+            <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+              <Server className="text-rose-500" /> Extracted IPs (Potential IOCs)
+            </h3>
+            <div className="overflow-x-auto max-h-64 custom-scrollbar">
               <table className="w-full text-left text-sm">
-                <thead>
+                <thead className="bg-black/40 sticky top-0">
                   <tr className="text-soc-muted border-b border-gray-800">
-                    <th className="pb-3 font-medium">Source</th>
-                    <th className="pb-3 font-medium"></th>
-                    <th className="pb-3 font-medium">Destination</th>
-                    <th className="pb-3 font-medium">Protocol</th>
-                    <th className="pb-3 font-medium">Packet Size</th>
+                    <th className="p-3 font-medium">IP Address</th>
+                    <th className="p-3 font-medium text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {results.stats.connections.map((conn: any, i: number) => (
-                    <tr key={i} className="border-b border-gray-800/50 hover:bg-white/[0.02]">
-                      <td className="py-3 font-mono text-gray-300">{conn.src}</td>
-                      <td className="py-3"><ArrowRight className="w-4 h-4 text-soc-muted" /></td>
-                      <td className="py-3 font-mono text-gray-300">{conn.dst}</td>
-                      <td className="py-3">
-                        <span className="bg-soc-accent/10 text-soc-accent px-2 py-1 rounded text-xs border border-soc-accent/20">
-                          {conn.protocol}
-                        </span>
+                  {results.stats.iocs.ips.map((ip: string, i: number) => (
+                    <tr key={i} className="border-b border-gray-800/50 hover:bg-white/[0.02] group">
+                      <td className="p-3 font-mono text-rose-300 font-medium">{ip}</td>
+                      <td className="p-3 text-right">
+                        <button className="opacity-0 group-hover:opacity-100 bg-rose-600/20 hover:bg-rose-600/40 text-rose-400 border border-rose-500/30 px-3 py-1.5 rounded-lg text-xs font-medium transition-all">
+                          Block on pfSense
+                        </button>
                       </td>
-                      <td className="py-3 text-soc-muted">{conn.length} bytes</td>
                     </tr>
                   ))}
+                  {results.stats.iocs.ips.length === 0 && (
+                    <tr><td colSpan={2} className="p-4 text-center text-slate-500">No IPs extracted.</td></tr>
+                  )}
                 </tbody>
               </table>
+            </div>
+          </div>
+
+          {/* DNS Queries */}
+          <div className="bg-soc-card rounded-xl p-6 border border-gray-800">
+            <h3 className="text-lg font-bold text-white mb-4">DNS Queries</h3>
+            <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar pr-2">
+              {results.stats.iocs.dns_queries.map((dns: string, idx: number) => (
+                <div key={idx} className="bg-black/40 border border-gray-800 p-2.5 rounded-lg text-sm font-mono text-indigo-300 truncate hover:text-indigo-200 hover:border-indigo-500/30 transition-colors">
+                  {dns}
+                </div>
+              ))}
+              {results.stats.iocs.dns_queries.length === 0 && (
+                <div className="text-center text-slate-500 py-4">No DNS queries found.</div>
+              )}
+            </div>
+          </div>
+
+          {/* HTTP Payloads */}
+          <div className="bg-soc-card rounded-xl p-6 border border-gray-800 md:col-span-3">
+            <h3 className="text-lg font-bold text-white mb-4">Suspicious HTTP Payloads (Cleartext)</h3>
+            <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
+              {results.stats.iocs.http_payloads.map((payload: string, idx: number) => (
+                <div key={idx} className="bg-slate-900 border border-amber-900/30 p-3 rounded-lg text-sm font-mono text-amber-300/80 hover:text-amber-200 transition-colors break-all">
+                  {payload}
+                </div>
+              ))}
+              {results.stats.iocs.http_payloads.length === 0 && (
+                <div className="text-center text-slate-500 py-4">No cleartext HTTP payloads extracted.</div>
+              )}
             </div>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { Shield, LayoutDashboard, Map, FileText, Settings, ShieldAlert, ChevronLeft, ChevronRight, AlertTriangle, Server, Network, ShieldCheck, ActivitySquare } from 'lucide-react';
+import { Shield, LayoutDashboard, Map, FileText, Settings, ShieldAlert, ChevronLeft, ChevronRight, AlertTriangle, Server, Network, ShieldCheck, ActivitySquare, Code } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
 const navItems = [
@@ -7,6 +7,7 @@ const navItems = [
   { name: 'Threat Map', path: '/map', icon: Map },
   { name: 'Assets', path: '/assets', icon: Server },
   { name: 'Incidents', path: '/incidents', icon: AlertTriangle },
+  { name: 'Pentest & Reports', path: '/pentest', icon: ShieldCheck },
   { name: 'Forensics', path: '/forensics', icon: ActivitySquare },
   { name: 'Rules', path: '/rules', icon: ShieldAlert },
   { name: 'Logs', path: '/logs', icon: FileText },

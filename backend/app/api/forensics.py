@@ -8,6 +8,7 @@ import uuid
 import os
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+from scapy.all import rdpcap, IP, DNS, TCP, UDP
 
 router = APIRouter()
 logger = logging.getLogger("forensics")
@@ -23,51 +24,44 @@ def analyze_pcap(job_id: str, file_path: str):
         logger.info(f"Starting PCAP analysis for {job_id} at {file_path}")
         _pcap_results[job_id] = {"status": "analyzing"}
         
-        # We only read the first 1000 packets to prevent memory issues for the demo
-        cap = pyshark.FileCapture(file_path, keep_packets=False)
+        packets = rdpcap(file_path)
         
         stats = {
-            "total_packets": 0,
-            "protocols": {},
-            "top_ips": {},
-            "connections": []
+            "total_packets": len(packets),
+            "iocs": {
+                "ips": set(),
+                "dns_queries": set(),
+                "http_payloads": set()
+            }
         }
         
-        connections_set = set()
-        
-        for packet in cap:
-            stats["total_packets"] += 1
-            if stats["total_packets"] > 1000:
-                break
-                
-            try:
-                protocol = packet.highest_layer
-                stats["protocols"][protocol] = stats["protocols"].get(protocol, 0) + 1
-                
-                if hasattr(packet, 'ip'):
-                    src = packet.ip.src
-                    dst = packet.ip.dst
-                    stats["top_ips"][src] = stats["top_ips"].get(src, 0) + 1
-                    stats["top_ips"][dst] = stats["top_ips"].get(dst, 0) + 1
+        for pkt in packets:
+            if IP in pkt:
+                stats["iocs"]["ips"].add(pkt[IP].src)
+                stats["iocs"]["ips"].add(pkt[IP].dst)
+            
+            if DNS in pkt and pkt[DNS].qr == 0:
+                if pkt[DNS].qd:
+                    try:
+                        qname = pkt[DNS].qd.qname.decode('utf-8')
+                        stats["iocs"]["dns_queries"].add(qname)
+                    except:
+                        pass
                     
-                    conn_key = f"{src}-{dst}-{protocol}"
-                    if conn_key not in connections_set:
-                        connections_set.add(conn_key)
-                        stats["connections"].append({
-                            "src": src,
-                            "dst": dst,
-                            "protocol": protocol,
-                            "length": packet.length
-                        })
-            except AttributeError:
-                continue
-                
-        cap.close()
-        
-        # Sort and limit top IPs and connections
-        sorted_ips = sorted(stats["top_ips"].items(), key=lambda x: x[1], reverse=True)[:10]
-        stats["top_ips"] = {k: v for k, v in sorted_ips}
-        stats["connections"] = stats["connections"][:50]
+            if TCP in pkt and (pkt[TCP].dport == 80 or pkt[TCP].sport == 80 or pkt[TCP].dport == 8080):
+                payload = bytes(pkt[TCP].payload)
+                if b'HTTP' in payload or b'GET ' in payload or b'POST ' in payload:
+                    try:
+                        first_line = payload.split(b'\r\n')[0].decode('utf-8', errors='ignore')
+                        if first_line.strip():
+                            stats["iocs"]["http_payloads"].add(first_line)
+                    except:
+                        pass
+                        
+        # Limit to top results for JSON
+        stats["iocs"]["ips"] = list(stats["iocs"]["ips"])[:50]
+        stats["iocs"]["dns_queries"] = list(stats["iocs"]["dns_queries"])[:50]
+        stats["iocs"]["http_payloads"] = list(stats["iocs"]["http_payloads"])[:50]
         
         _pcap_results[job_id] = {
             "status": "completed",
@@ -79,9 +73,9 @@ def analyze_pcap(job_id: str, file_path: str):
             category="forensics-analysis",
             content=f"🕵️ **PCAP Analysis Completed: {job_id}**",
             embeds=[{
-                "title": "Forensics Results",
-                "description": f"Phân tích xong tệp `{job_id}`.\nPhát hiện **{len(stats['top_ips'])}** Top IPs.\nChi tiết xem tại ACS Control Center.",
-                "color": 15105570 # Orange
+                "title": "Forensics PCAP IOCs",
+                "description": f"Phân tích PCAP `{job_id}`.\nPhát hiện **{len(stats['iocs']['ips'])}** IPs và **{len(stats['iocs']['dns_queries'])}** DNS Queries.",
+                "color": 15105570
             }]
         )
         

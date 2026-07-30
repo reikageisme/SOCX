@@ -210,14 +210,16 @@ export const Assets = () => {
               value={cmdInput}
               onChange={handleCmdChange}
               onKeyDown={handleCmdKeyDown}
-              placeholder="Type / to see available tools (e.g., /nmap aceda.id.vn)"
-              className="flex-1 bg-transparent border-none text-slate-200 font-mono py-2 px-2 focus:outline-none placeholder:text-slate-600"
+              placeholder={useStore.getState().userRole === 'auditor' ? "Terminal disabled for auditors" : "Type / to see available tools (e.g., /nmap aceda.id.vn)"}
+              disabled={useStore.getState().userRole === 'auditor'}
+              className="flex-1 bg-transparent border-none text-slate-200 font-mono py-2 px-2 focus:outline-none placeholder:text-slate-600 disabled:opacity-50"
               autoComplete="off"
               spellCheck="false"
             />
             <button 
               onClick={executeCommand}
-              className="bg-teal-600/20 hover:bg-teal-600/40 text-teal-400 p-2 rounded-md transition-colors border border-teal-500/30 mr-1"
+              disabled={useStore.getState().userRole === 'auditor'}
+              className="bg-teal-600/20 hover:bg-teal-600/40 text-teal-400 p-2 rounded-md transition-colors border border-teal-500/30 mr-1 disabled:opacity-50"
             >
               <Zap size={18} />
             </button>
@@ -322,7 +324,7 @@ export const Assets = () => {
                     <td className="p-4">
                       <button 
                         onClick={() => handleScan(asset)}
-                        disabled={scanningId === asset.id}
+                        disabled={scanningId === asset.id || useStore.getState().userRole === 'auditor'}
                         className="bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/30 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1 disabled:opacity-50"
                       >
                         {scanningId === asset.id ? <Clock size={14} className="animate-spin" /> : <Search size={14} />}

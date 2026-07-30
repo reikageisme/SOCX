@@ -5,6 +5,8 @@ import { Layout } from './components/layout/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { ThreatMapPage } from './pages/ThreatMapPage';
 import { Login } from './pages/Login';
+import { Pentest } from './pages/Pentest';
+import { Rules } from './pages/Rules';
 import { RulesPage } from './pages/Rules';
 import { LogsPage } from './pages/Logs';
 import { SettingsPage } from './pages/Settings';
@@ -38,6 +40,7 @@ function App() {
             <Route index element={<Dashboard />} />
             <Route path="map" element={<ThreatMapPage />} />
             <Route path="incidents" element={<Incidents />} />
+            <Route path="pentest" element={<Pentest />} />
             <Route path="assets" element={<Assets />} />
             <Route path="rules" element={<RulesPage />} />
             <Route path="logs" element={<LogsPage />} />
