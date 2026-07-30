@@ -316,6 +316,12 @@ def get_event_stats(minutes: int = 60):
 
 @app.on_event("startup")
 async def startup_event():
+    # Security check for default secrets
+    if settings.SECRET_KEY == "a-very-secret-key-change-this-in-production" or settings.PROXMOX_TOKEN_SECRET == "your-token-secret-here":
+        logging.getLogger("uvicorn.error").critical("CRITICAL SECURITY WARNING: Default SECRET_KEY or PROXMOX_TOKEN_SECRET detected in production! Please override in .env.")
+        import sys
+        sys.exit(1)
+        
     # Initialize DB
     Base.metadata.create_all(bind=engine)
     

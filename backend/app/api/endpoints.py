@@ -94,7 +94,7 @@ async def receive_network_event(event: NetworkEvent):
     return {"status": "success"}
 
 @router.get("/system/dashboard-metrics")
-def get_dashboard_metrics():
+def get_dashboard_metrics(current_user: str = Depends(get_current_user)):
     from app.core.db import SessionLocal
     from app.models.incident import Incident
     

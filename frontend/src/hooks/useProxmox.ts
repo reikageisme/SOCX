@@ -15,6 +15,9 @@ export const useProxmoxNodes = () => {
         } 
       });
       if (!response.ok) {
+        if (response.status === 401) {
+          useStore.getState().setToken(null);
+        }
         throw new Error('Network response was not ok');
       }
       return response.json();
@@ -35,6 +38,9 @@ export const useProxmoxVms = (nodeName: string) => {
         } 
       });
       if (!response.ok) {
+        if (response.status === 401) {
+          useStore.getState().setToken(null);
+        }
         throw new Error('Network response was not ok');
       }
       return response.json();
@@ -55,6 +61,9 @@ export const useProxmoxVms = (nodeName: string) => {
           } 
         });
         if (!response.ok) {
+          if (response.status === 401) {
+            useStore.getState().setToken(null);
+          }
           throw new Error('Network response was not ok');
         }
         return response.json();

@@ -205,6 +205,9 @@ export const AttackCanvasLayer: React.FC<{ arcs: CanvasArcEvent[] }> = ({ arcs }
     const now = performance.now();
     const currentArcs = arcsRef.current;
 
+    // Store unique destinations to draw pulse rings only once per target
+    const destMap = new Map<string, { x: number, y: number, color: string, fadeAlpha: number, count: number }>();
+
     for (let i = 0; i < currentArcs.length; i++) {
       const arc = currentArcs[i];
       const color = arc.sourceKind === 'global_threat_feed' ? COLOR_PURPLE : COLOR_CYAN;
@@ -242,7 +245,7 @@ export const AttackCanvasLayer: React.FC<{ arcs: CanvasArcEvent[] }> = ({ arcs }
       ctx.strokeStyle = color;
       ctx.lineWidth = weight;
       ctx.shadowColor = color;
-      ctx.shadowBlur = 8;
+      ctx.shadowBlur = 2; // Reduced from 8 for performance
       ctx.beginPath();
       ctx.moveTo(points[0], points[1]);
       for (let j = 1; j <= ARC_SEGMENTS; j++) {
@@ -260,22 +263,32 @@ export const AttackCanvasLayer: React.FC<{ arcs: CanvasArcEvent[] }> = ({ arcs }
       ctx.globalAlpha = fadeAlpha;
       ctx.fillStyle = COLOR_WHITE;
       ctx.shadowColor = color;
-      ctx.shadowBlur = 12;
+      ctx.shadowBlur = 4; // Reduced from 12 for performance
       ctx.beginPath();
       ctx.arc(px, py, particleRadius, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
 
-      // ── 3. Target pulse ring ───────────────────────────────────────
-      const targetRadius = Math.min(3 + arc.count * 0.5, 8);
-      drawPulse(ctx, dstPt.x, dstPt.y, color, fadeAlpha, now, targetRadius);
-
-      // ── 4. Target dot ──────────────────────────────────────────────
-      drawDot(ctx, dstPt.x, dstPt.y, targetRadius, color, COLOR_WHITE, fadeAlpha);
+      // ── 3. Target pulse ring (Deferred to deduplicate) ────────────
+      const key = `${arc.destLat},${arc.destLng}`;
+      if (!destMap.has(key)) {
+        destMap.set(key, { x: dstPt.x, y: dstPt.y, color, fadeAlpha, count: arc.count });
+      } else {
+        const existing = destMap.get(key)!;
+        existing.count += arc.count;
+        existing.fadeAlpha = Math.max(existing.fadeAlpha, fadeAlpha);
+      }
 
       // ── 5. Source dot (NO conflicting animation — simple static) ───
       drawDot(ctx, srcPt.x, srcPt.y, Math.min(2 + arc.count * 0.3, 5), color, color, fadeAlpha * 0.8);
     }
+
+    // ── Draw Deduplicated Target Pulses & Dots ────────────────────────────
+    destMap.forEach((target) => {
+      const targetRadius = Math.min(3 + target.count * 0.5, 8);
+      drawPulse(ctx, target.x, target.y, target.color, target.fadeAlpha, now, targetRadius);
+      drawDot(ctx, target.x, target.y, targetRadius, target.color, COLOR_WHITE, target.fadeAlpha);
+    });
 
     // ── Cluster overlay at low zoom ──────────────────────────────────────
     const zoom = zoomRef.current;
@@ -303,7 +316,7 @@ export const AttackCanvasLayer: React.FC<{ arcs: CanvasArcEvent[] }> = ({ arcs }
         ctx.strokeStyle = COLOR_CYAN;
         ctx.lineWidth = 2;
         ctx.shadowColor = COLOR_CYAN;
-        ctx.shadowBlur = 10;
+        ctx.shadowBlur = 4; // Reduced from 10 for performance
         ctx.beginPath();
         ctx.arc(pt.x, pt.y, clusterRadius, 0, Math.PI * 2);
         ctx.fill();
