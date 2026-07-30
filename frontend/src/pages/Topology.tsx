@@ -9,7 +9,9 @@ import {
   addEdge,
   Handle,
   Position,
-  NodeProps
+  type NodeProps,
+  type Node,
+  type Edge
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Network, Server, Globe, Shield, Activity, X, Play, Square, HardDrive, Cpu } from 'lucide-react';
@@ -41,7 +43,7 @@ const CustomNode = ({ data, isConnectable }: NodeProps) => {
           <div className="font-bold text-slate-200 text-sm">{data.label}</div>
           {data.type === 'proxmox' && (
             <div className={`text-xs ${isOffline ? 'text-rose-400 font-bold' : 'text-slate-400'}`}>
-              {isOffline ? 'OFFLINE' : `${((data.cpu || 0) * 100).toFixed(1)}% CPU`}
+              {isOffline ? 'OFFLINE' : `${(((data.cpu as number) || 0) * 100).toFixed(1)}% CPU`}
             </div>
           )}
         </div>
@@ -117,8 +119,8 @@ const NodeDetailsModal = ({ nodeName, onClose }: { nodeName: string, onClose: ()
 };
 
 export const Topology = () => {
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const { data: proxmoxData } = useProxmoxNodes();
   
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
