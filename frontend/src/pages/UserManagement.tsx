@@ -189,7 +189,7 @@ export const UserManagement = () => {
                     <td className="p-4">
                       <div className="flex items-center gap-3">
                         <img 
-                          src={user.avatar_url ? (user.avatar_url.startsWith('http') ? user.avatar_url : `http://localhost:8000${user.avatar_url}`) : `https://ui-avatars.com/api/?name=${user.username}&background=random`} 
+                          src={user.avatar_url || `https://ui-avatars.com/api/?name=${user.username}&background=random`} 
                           alt="Avatar" 
                           className="w-10 h-10 rounded-full object-cover border border-slate-700 group-hover:border-indigo-500/50 transition-colors"
                         />

@@ -150,7 +150,7 @@ def upload_avatar_me(file: UploadFile = File(...), db: Session = Depends(get_db)
     # Assuming backend runs on port 8000 and the frontend accesses it via localhost:8000 or the reverse proxy
     # We store the relative path and let the frontend prefix it, or store the absolute path.
     # It's better to store relative path or standard URL path so it works everywhere.
-    avatar_url = f"/uploads/avatars/{filename}"
+    avatar_url = f"/api/v1/uploads/avatars/{filename}"
     user.avatar_url = avatar_url
     db.commit()
     db.refresh(user)

@@ -50,12 +50,8 @@ export const Profile = () => {
     formData.append('file', file);
     
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:8000/api/v1/users/me/avatar', {
+      const res = await apiFetch('/api/v1/users/me/avatar', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
         body: formData
       });
       
@@ -145,7 +141,7 @@ export const Profile = () => {
           <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-6 flex flex-col items-center">
             <div className="relative mb-4 group w-32 h-32 rounded-full border-4 border-slate-800 flex-shrink-0">
               <img 
-                src={profile.avatar_url ? `http://localhost:8000${profile.avatar_url}` : `https://ui-avatars.com/api/?name=${profile.username}&background=random`} 
+                src={profile.avatar_url ? profile.avatar_url : `https://ui-avatars.com/api/?name=${profile.username}&background=random`} 
                 alt="Avatar" 
                 className="w-full h-full rounded-full object-cover"
               />
