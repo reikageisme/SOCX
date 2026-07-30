@@ -97,7 +97,7 @@ export const Dashboard = () => {
   const { data: proxmoxData, isLoading, isError } = useProxmoxNodes();
   const { data: metricsData } = useDashboardMetrics();
   const { data: slaData } = useSlaMetrics();
-  const threatEvents = useStore((state) => state.threatEvents);
+  const userRole = useStore((state) => state.userRole);
 
   return (
     <div className="space-y-6">
