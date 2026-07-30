@@ -282,10 +282,11 @@ export const AttackCanvasLayer: React.FC<{ arcs: CanvasArcEvent[] }> = ({ arcs }
       const particleRadius = Math.min(2.5 + arc.count * 0.3, 5);
       const sprite = color === COLOR_CYAN ? cyanParticleSprite : purpleParticleSprite;
 
-      const tailLength = 0.20; // 20% of arc length
-      const tailSegments = 10; // Number of glowing dots trailing behind
+      const tailLength = 0.15; // 15% of arc length is enough when we have many segments
+      const tailSegments = 30; // Increased to 30 for smooth tapering tail
 
       ctx.save();
+      ctx.globalCompositeOperation = 'screen'; // Additive blending for neon glowing effect
       // Render from tail to head (so head is drawn on top)
       for (let k = tailSegments; k >= 0; k--) {
         const t = particleT - (tailLength * (k / tailSegments));
