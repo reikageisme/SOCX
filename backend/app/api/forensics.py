@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, UploadFile, File, BackgroundTasks, HTTPException
 from app.api.endpoints import get_current_user
+from app.services.discord import discord_service
 from typing import Dict, Any
 import pyshark
 import logging
@@ -72,6 +73,18 @@ def analyze_pcap(job_id: str, file_path: str):
             "status": "completed",
             "stats": stats
         }
+        
+        # Send Discord Alert
+        discord_service.send_alert(
+            category="forensics-analysis",
+            content=f"🕵️ **PCAP Analysis Completed: {job_id}**",
+            embeds=[{
+                "title": "Forensics Results",
+                "description": f"Phân tích xong tệp `{job_id}`.\nPhát hiện **{len(stats['top_ips'])}** Top IPs.\nChi tiết xem tại ACS Control Center.",
+                "color": 15105570 # Orange
+            }]
+        )
+        
         logger.info(f"Completed PCAP analysis {job_id}")
         
         # Clean up the file

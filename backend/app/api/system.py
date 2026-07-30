@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from typing import List
 import logging
 from app.api.endpoints import get_current_user
-from app.services.telegram import telegram_service
+from app.services.discord import discord_service
 from pydantic import BaseModel
 import subprocess
 
@@ -58,15 +58,24 @@ def get_container_logs(container_name: str, lines: int = 500, current_user: str 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-class TelegramTestRequest(BaseModel):
-    token: str
-    chat_id: str
+class DiscordTestRequest(BaseModel):
+    category: str
     message: str = "🚨 <b>TEST ALERT</b> 🚨\n\nThis is a test message from ACE SOC."
 
-@router.post("/telegram/test")
-def test_telegram(req: TelegramTestRequest, current_user: str = Depends(get_current_user)):
-    success = telegram_service.send_message(req.token, req.chat_id, req.message)
+@router.post("/discord/test")
+def test_discord(req: DiscordTestRequest, current_user: str = Depends(get_current_user)):
+    embeds = [{
+        "title": "ACE SOC System Test",
+        "description": req.message,
+        "color": 3447003 # Blue
+    }]
+    content = ""
+    if req.category == "critical-alerts":
+        content = "@here 🚨 CRITICAL ALERT TEST"
+        embeds[0]["color"] = 15158332 # Red
+
+    success = discord_service.send_alert(req.category, content=content, embeds=embeds)
     if success:
-        return {"status": "success", "message": "Test message sent"}
+        return {"status": "success", "message": f"Test message sent to #{req.category}"}
     else:
-        raise HTTPException(status_code=500, detail="Failed to send message. Check token and chat ID.")
+        raise HTTPException(status_code=500, detail="Failed to send message to Discord.")

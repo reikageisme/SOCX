@@ -12,9 +12,8 @@ export const SettingsPage: React.FC = () => {
   const [showKeys, setShowKeys] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
-  const [telegramToken, setTelegramToken] = useState('');
-  const [telegramChatId, setTelegramChatId] = useState('');
-  const [testTelegramStatus, setTestTelegramStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
+  const [discordCategory, setDiscordCategory] = useState('critical-alerts');
+  const [testDiscordStatus, setTestDiscordStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
 
   useEffect(() => {
     apiFetch('/api/v1/settings', {
@@ -27,8 +26,6 @@ export const SettingsPage: React.FC = () => {
           setAiProvider(data.ai_provider);
           setOllamaUrl(data.ollama_url || 'http://localhost:11434');
           setGeminiKey(data.gemini_key || '');
-          setTelegramToken(data.telegram_token || '');
-          setTelegramChatId(data.telegram_chat_id || '');
         }
       });
   }, [token]);
@@ -43,24 +40,23 @@ export const SettingsPage: React.FC = () => {
     }, 1000);
   };
 
-  const handleTestTelegram = async () => {
-    if (!telegramToken || !telegramChatId) return;
-    setTestTelegramStatus('testing');
+  const handleTestDiscord = async () => {
+    setTestDiscordStatus('testing');
     try {
-      const res = await apiFetch('/api/v1/system/telegram/test', {
+      const res = await apiFetch('/api/v1/system/discord/test', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ token: telegramToken, chat_id: telegramChatId })
+        body: JSON.stringify({ category: discordCategory })
       });
-      if (res.ok) setTestTelegramStatus('success');
-      else setTestTelegramStatus('error');
+      if (res.ok) setTestDiscordStatus('success');
+      else setTestDiscordStatus('error');
     } catch {
-      setTestTelegramStatus('error');
+      setTestDiscordStatus('error');
     }
-    setTimeout(() => setTestTelegramStatus('idle'), 3000);
+    setTimeout(() => setTestDiscordStatus('idle'), 3000);
   };
 
   if (!settings) {
@@ -208,42 +204,42 @@ export const SettingsPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Telegram Webhooks */}
+        {/* Discord Webhooks */}
         <div className="bg-slate-900/50 rounded-2xl border border-slate-700 p-6 backdrop-blur-md">
           <h2 className="text-xl font-semibold text-slate-200 flex items-center gap-2 mb-6">
-            <MessageCircle size={20} className="text-blue-400" />
-            Alerting Webhooks (Telegram)
+            <MessageCircle size={20} className="text-[#5865F2]" />
+            Discord Operations Center (Webhooks)
           </h2>
           
           <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-400 mb-1">Telegram Bot Token</label>
-              <input 
-                type={showKeys ? "text" : "password"}
-                value={telegramToken}
-                onChange={(e) => setTelegramToken(e.target.value)}
-                placeholder="e.g. 123456789:ABCdefGHIjklmNoPQRstUVwxyZ"
-                className="bg-slate-950/50 border border-slate-700 rounded-lg px-4 py-2 w-full text-slate-200 focus:outline-none focus:border-blue-500 font-mono"
-              />
+            <div className="text-sm text-slate-400 mb-4">
+              Alerts are automatically routed to predefined Discord channels based on their category.
+              Select a channel below to send a test message.
             </div>
             <div className="flex gap-4 items-end">
               <div className="flex-1">
-                <label className="block text-sm font-medium text-slate-400 mb-1">Chat ID</label>
-                <input 
-                  type="text"
-                  value={telegramChatId}
-                  onChange={(e) => setTelegramChatId(e.target.value)}
-                  placeholder="e.g. -1001234567890"
-                  className="bg-slate-950/50 border border-slate-700 rounded-lg px-4 py-2 w-full text-slate-200 focus:outline-none focus:border-blue-500 font-mono"
-                />
+                <label className="block text-sm font-medium text-slate-400 mb-1">Target Channel</label>
+                <select 
+                  value={discordCategory}
+                  onChange={(e) => setDiscordCategory(e.target.value)}
+                  className="bg-slate-950/50 border border-slate-700 rounded-lg px-4 py-2 w-full text-slate-200 focus:outline-none focus:border-[#5865F2] font-mono"
+                >
+                  <option value="critical-alerts">🔴 #critical-alerts</option>
+                  <option value="security-warnings">🟠 #security-warnings</option>
+                  <option value="pve-status">🟡 #pve-status</option>
+                  <option value="network-logs">🌐 #network-logs</option>
+                  <option value="database-monitor">💾 #database-monitor</option>
+                  <option value="pentest-reports">🟢 #pentest-reports</option>
+                  <option value="forensics-analysis">🕵️ #forensics-analysis</option>
+                </select>
               </div>
               <button
-                onClick={handleTestTelegram}
-                disabled={testTelegramStatus === 'testing' || !telegramToken || !telegramChatId}
-                className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 mb-[2px]"
+                onClick={handleTestDiscord}
+                disabled={testDiscordStatus === 'testing'}
+                className="bg-[#5865F2] hover:bg-[#4752C4] disabled:opacity-50 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 mb-[2px]"
               >
                 <Send size={18} />
-                {testTelegramStatus === 'testing' ? 'Sending...' : testTelegramStatus === 'success' ? 'Sent!' : testTelegramStatus === 'error' ? 'Failed' : 'Test'}
+                {testDiscordStatus === 'testing' ? 'Sending...' : testDiscordStatus === 'success' ? 'Sent!' : testDiscordStatus === 'error' ? 'Failed' : 'Test Webhook'}
               </button>
             </div>
           </div>
