@@ -118,10 +118,16 @@ export const Assets = () => {
       setActiveSuggestion(prev => (prev > 0 ? prev - 1 : 0));
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      const tool = filteredTools[activeSuggestion];
-      if (tool) {
-        setCmdInput(`/${tool.id} `);
-        setShowSuggestions(false);
+      // If the user already typed a command with a space (e.g. "/nmap aceda.id.vn"), execute it
+      if (cmdInput.trim().split(' ').length > 1 && cmdInput.trim().split(' ')[1] !== '') {
+        executeCommand();
+      } else {
+        // Otherwise, autocomplete the selected tool
+        const tool = filteredTools[activeSuggestion];
+        if (tool) {
+          setCmdInput(`/${tool.id} `);
+          setShowSuggestions(false);
+        }
       }
     } else if (e.key === 'Escape') {
       setShowSuggestions(false);

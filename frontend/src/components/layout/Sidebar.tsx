@@ -7,7 +7,6 @@ const navItems = [
   { name: 'Threat Map', path: '/map', icon: Map },
   { name: 'Assets', path: '/assets', icon: Server },
   { name: 'Incidents', path: '/incidents', icon: AlertTriangle },
-  { name: 'Pentest', path: '/pentest', icon: ShieldCheck },
   { name: 'Forensics', path: '/forensics', icon: ActivitySquare },
   { name: 'Rules', path: '/rules', icon: ShieldAlert },
   { name: 'Logs', path: '/logs', icon: FileText },

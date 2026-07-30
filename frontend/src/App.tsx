@@ -10,7 +10,6 @@ import { LogsPage } from './pages/Logs';
 import { SettingsPage } from './pages/Settings';
 import { Assets } from './pages/Assets';
 import { Incidents } from './pages/Incidents';
-import { Pentest } from './pages/Pentest';
 import { Forensics } from './pages/Forensics';
 import { Topology } from './pages/Topology';
 import { useStore } from './store/useStore';
@@ -43,7 +42,6 @@ function App() {
             <Route path="rules" element={<RulesPage />} />
             <Route path="logs" element={<LogsPage />} />
             <Route path="settings" element={<SettingsPage />} />
-            <Route path="pentest" element={<Pentest />} />
             <Route path="forensics" element={<Forensics />} />
             <Route path="topology" element={<Topology />} />
           </Route>
