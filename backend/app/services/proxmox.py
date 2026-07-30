@@ -59,4 +59,24 @@ class ProxmoxService:
             print(f"Error fetching LXC for node {node_name}: {str(e)}")
             return []
 
+    def execute_vm_action(self, node_name: str, vmid: int, action: str):
+        if settings.MOCK_PROXMOX:
+            return {"status": "mock_success", "action": action, "vmid": vmid}
+        if not self.proxmox:
+            self._connect()
+            if not self.proxmox:
+                raise Exception("Not connected to Proxmox")
+                
+        # Proxmox API allows start, stop, shutdown, reboot, suspend, resume
+        # Path: /nodes/{node}/qemu/{vmid}/status/{action} or lxc/{vmid}
+        try:
+            # Try QEMU first, if fails try LXC
+            try:
+                res = self.proxmox.nodes(node_name).qemu(vmid).status.post(action)
+            except:
+                res = self.proxmox.nodes(node_name).lxc(vmid).status.post(action)
+            return res
+        except Exception as e:
+            raise Exception(f"Failed to execute {action} on VM {vmid}: {str(e)}")
+
 proxmox_service = ProxmoxService()

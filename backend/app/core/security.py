@@ -14,7 +14,7 @@ def get_password_hash(password: str) -> str:
     return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
 def create_access_token(
-    subject: Union[str, Any], expires_delta: timedelta = None
+    subject: Union[str, Any], role: str = "admin", expires_delta: timedelta = None
 ) -> str:
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -22,17 +22,17 @@ def create_access_token(
         expire = datetime.utcnow() + timedelta(
             minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
         )
-    to_encode = {"exp": expire, "sub": str(subject)}
+    to_encode = {"exp": expire, "sub": str(subject), "role": role}
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
 
 def verify_token(token: str) -> Optional[str]:
     """
-    Verify a JWT token and return the username (sub claim).
-    Returns None if the token is invalid, expired, or malformed.
+    Verify a JWT token and return the (username, role).
+    Returns (None, None) if the token is invalid, expired, or malformed.
     """
     if not token:
-        return None
+        return None, None
     try:
         payload = jwt.decode(
             token,
@@ -40,10 +40,11 @@ def verify_token(token: str) -> Optional[str]:
             algorithms=[settings.ALGORITHM]
         )
         username: str = payload.get("sub")
+        role: str = payload.get("role", "admin")
         if username is None:
             logger.warning("Token missing 'sub' claim")
-            return None
-        return username
+            return None, None
+        return username, role
     except JWTError as e:
         logger.warning(f"Token verification failed: {e}")
-        return None
+        return None, None

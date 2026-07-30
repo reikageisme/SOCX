@@ -3,10 +3,33 @@ import { useStore } from '../store/useStore';
 import { Server, Cpu, HardDrive, ShieldAlert, Activity } from 'lucide-react';
 import { DashboardMap } from '../components/map/DashboardMap';
 import { useSlaMetrics } from '../hooks/useAnalytics';
-import { Clock, Timer } from 'lucide-react';
+import { Clock, Timer, Play, Square, RefreshCw, Plus } from 'lucide-react';
+import { apiFetch } from '../lib/api';
+import { useState } from 'react';
 
 const ProxmoxNodeRow = ({ node }: { node: any }) => {
-  const { data: vmsData, isLoading } = useProxmoxVms(node.node);
+  const { data: vmsData, isLoading, refetch } = useProxmoxVms(node.node);
+  const userRole = useStore((state) => state.userRole);
+  const token = useStore((state) => state.token);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const handleAction = async (vmid: number, action: string) => {
+    setActionLoading(`${vmid}-${action}`);
+    try {
+      await apiFetch(`/api/v1/proxmox/nodes/${node.node}/vms/${vmid}/action`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ action })
+      });
+      setTimeout(() => refetch(), 2000); // refresh after 2 seconds
+    } catch (e) {
+      console.error(e);
+    }
+    setActionLoading(null);
+  };
 
   return (
     <>
@@ -30,7 +53,7 @@ const ProxmoxNodeRow = ({ node }: { node: any }) => {
         </tr>
       ) : (
         [...(vmsData?.data?.qemu || []).map((v: any) => ({ ...v, type: 'qemu' })), ...(vmsData?.data?.lxc || []).map((v: any) => ({ ...v, type: 'lxc' }))].map((vm: any) => (
-          <tr key={`${node.node}-${vm.vmid}`} className="border-b border-gray-800/20 bg-black/20 text-sm hover:bg-white/[0.01] transition-colors">
+          <tr key={`${node.node}-${vm.vmid}`} className="group border-b border-gray-800/20 bg-black/20 text-sm hover:bg-white/[0.01] transition-colors">
             <td className="py-2 pl-8 text-soc-muted font-mono flex items-center gap-2">
               <span className="text-gray-600">└─</span> 
               {vm.type === 'lxc' ? '📦' : '🖥️'} {vm.name} 
@@ -47,6 +70,21 @@ const ProxmoxNodeRow = ({ node }: { node: any }) => {
             </td>
             <td className="py-2 text-soc-muted">{vm.cpu ? (vm.cpu * 100).toFixed(1) : '0.0'}%</td>
             <td className="py-2 text-soc-muted">{vm.maxmem ? (vm.mem / 1024 / 1024 / 1024).toFixed(1) : '0.0'} GB</td>
+            <td className="py-2">
+              {(userRole === 'admin' || userRole === 'sysadmin') && (
+                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={() => handleAction(vm.vmid, 'start')} disabled={!!actionLoading} className="p-1 hover:bg-soc-success/20 rounded text-soc-success" title="Start">
+                    <Play size={14} />
+                  </button>
+                  <button onClick={() => handleAction(vm.vmid, 'stop')} disabled={!!actionLoading} className="p-1 hover:bg-soc-alert/20 rounded text-soc-alert" title="Stop">
+                    <Square size={14} />
+                  </button>
+                  <button onClick={() => handleAction(vm.vmid, 'reboot')} disabled={!!actionLoading} className="p-1 hover:bg-soc-warning/20 rounded text-soc-warning" title="Reboot">
+                    <RefreshCw size={14} className={actionLoading === `${vm.vmid}-reboot` ? 'animate-spin' : ''} />
+                  </button>
+                </div>
+              )}
+            </td>
           </tr>
         ))
       )}
@@ -181,6 +219,11 @@ export const Dashboard = () => {
               <Server className="w-5 h-5 text-soc-accent" />
               Proxmox Infrastructure
             </h3>
+            {userRole === 'admin' && (
+              <button className="flex items-center gap-1 bg-soc-accent/20 text-soc-accent hover:bg-soc-accent/30 px-3 py-1.5 rounded-lg text-sm transition-colors border border-soc-accent/30">
+                <Plus size={16} /> New VM/CT
+              </button>
+            )}
           </div>
           <div className="p-6 flex-1 overflow-auto">
             {isLoading ? (
@@ -195,6 +238,7 @@ export const Dashboard = () => {
                     <th className="pb-3 font-medium">Status</th>
                     <th className="pb-3 font-medium">CPU</th>
                     <th className="pb-3 font-medium">Memory</th>
+                    <th className="pb-3 font-medium">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -203,7 +247,7 @@ export const Dashboard = () => {
                   ))}
                   {(!proxmoxData?.data || proxmoxData.data.length === 0) && (
                     <tr>
-                      <td colSpan={4} className="py-8 text-center text-soc-muted italic">
+                      <td colSpan={5} className="py-8 text-center text-soc-muted italic">
                         No nodes found or API connection failed.
                       </td>
                     </tr>

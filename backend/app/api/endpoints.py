@@ -23,6 +23,20 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
         raise credentials_exception
     return username
 
+def get_current_user_with_role(token: str = Depends(oauth2_scheme)):
+    credentials_exception = HTTPException(
+        status_code=401, detail="Could not validate credentials", headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        username: str = payload.get("sub")
+        role: str = payload.get("role", "admin")
+        if username is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+    return {"username": username, "role": role}
+
 @router.get("/proxmox/nodes")
 def get_nodes(current_user: str = Depends(get_current_user)):
     """
@@ -39,6 +53,20 @@ def get_vms(node_name: str, current_user: str = Depends(get_current_user)):
     vms = proxmox_service.get_vms(node_name)
     lxcs = proxmox_service.get_lxc(node_name)
     return {"status": "success", "data": {"qemu": vms, "lxc": lxcs}}
+
+class ProxmoxAction(BaseModel):
+    action: str # start, stop, reboot
+
+@router.post("/proxmox/nodes/{node_name}/vms/{vmid}/action")
+def execute_vm_action(node_name: str, vmid: int, action_req: ProxmoxAction, user: dict = Depends(get_current_user_with_role)):
+    if user["role"] == "auditor":
+        raise HTTPException(status_code=403, detail="Auditors cannot perform actions")
+        
+    try:
+        res = proxmox_service.execute_vm_action(node_name, vmid, action_req.action)
+        return {"status": "success", "data": res}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/health")
 def health_check():

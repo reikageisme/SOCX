@@ -1,5 +1,18 @@
 import { create } from 'zustand';
 
+function parseJwt(token: string) {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(jsonPayload);
+  } catch (e) {
+    return null;
+  }
+}
+
 export interface ThreatEvent {
   id: string;
   source_kind?: 'local_sensor' | 'global_threat_feed';
@@ -25,6 +38,7 @@ export interface AppNotification {
 
 interface SocState {
   token: string | null;
+  userRole: string;
   setToken: (token: string | null) => void;
   wsConnected: boolean;
   setWsConnected: (status: boolean) => void;
@@ -38,10 +52,17 @@ interface SocState {
 
 export const useStore = create<SocState>((set) => ({
   token: localStorage.getItem('token') || null,
+  userRole: localStorage.getItem('token') ? (parseJwt(localStorage.getItem('token')!)?.role || 'auditor') : 'auditor',
   setToken: (token) => {
-    if (token) localStorage.setItem('token', token);
-    else localStorage.removeItem('token');
-    set({ token });
+    if (token) {
+      localStorage.setItem('token', token);
+      const decoded = parseJwt(token);
+      set({ token, userRole: decoded?.role || 'auditor' });
+    }
+    else {
+      localStorage.removeItem('token');
+      set({ token, userRole: 'auditor' });
+    }
   },
   wsConnected: false,
   setWsConnected: (status) => set({ wsConnected: status }),

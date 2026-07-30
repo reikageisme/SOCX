@@ -11,7 +11,18 @@ MOCK_USERS = {
     "tahnadmin": {
         "username": "tahnadmin",
         # "T@hn_Admin!2026$" hashed
-        "hashed_password": get_password_hash("T@hn_Admin!2026$")
+        "hashed_password": get_password_hash("T@hn_Admin!2026$"),
+        "role": "admin"
+    },
+    "sysadmin": {
+        "username": "sysadmin",
+        "hashed_password": get_password_hash("sysadmin"),
+        "role": "sysadmin"
+    },
+    "auditor": {
+        "username": "auditor",
+        "hashed_password": get_password_hash("auditor"),
+        "role": "auditor"
     }
 }
 
@@ -27,7 +38,7 @@ def login_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
             detail="Incorrect username or password"
         )
     
-    access_token = create_access_token(subject=user["username"])
+    access_token = create_access_token(subject=user["username"], role=user["role"])
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.get("/users/me")
