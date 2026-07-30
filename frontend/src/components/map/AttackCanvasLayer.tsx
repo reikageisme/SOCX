@@ -277,32 +277,52 @@ export const AttackCanvasLayer: React.FC<{ arcs: CanvasArcEvent[] }> = ({ arcs }
       ctx.stroke();
       ctx.restore();
 
-      // ── 2. Animated particle (Comet tail) ─
+      // ── 2. Animated particle (Comet tail using Canvas Path) ─
       const particleT = ((now % PARTICLE_DURATION_MS) / PARTICLE_DURATION_MS);
       const particleRadius = Math.min(2.5 + arc.count * 0.3, 5);
       const sprite = color === COLOR_CYAN ? cyanParticleSprite : purpleParticleSprite;
 
-      const tailLength = 0.15; // 15% of arc length is enough when we have many segments
-      const tailSegments = 30; // Increased to 30 for smooth tapering tail
+      const tailLength = 0.20; // 20% of arc length
 
-      ctx.save();
-      ctx.globalCompositeOperation = 'screen'; // Additive blending for neon glowing effect
-      // Render from tail to head (so head is drawn on top)
-      for (let k = tailSegments; k >= 0; k--) {
-        const t = particleT - (tailLength * (k / tailSegments));
-        if (t > 0 && t <= 1) {
-          const [tx, ty] = pointAtFraction(points, totalLength, t);
-          // Opacity fades out towards the end of the tail
-          const tailAlpha = fadeAlpha * Math.max(0, 1 - (k / tailSegments) * 0.9);
-          // Size tapers off towards the end of the tail
-          const scale = (particleRadius / 5) * Math.max(0.2, 1 - (k / tailSegments) * 0.6);
-          const spriteSize = (5 + 12) * 2 * scale;
-          
-          ctx.globalAlpha = tailAlpha;
-          ctx.drawImage(sprite, tx - spriteSize / 2, ty - spriteSize / 2, spriteSize, spriteSize);
+      if (particleT > 0) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'screen';
+        
+        // Find tail start t
+        const tailStartT = Math.max(0, particleT - tailLength);
+        
+        // Collect points along the bezier curve from tailStartT to particleT
+        ctx.beginPath();
+        const [startX, startY] = pointAtFraction(points, totalLength, tailStartT);
+        ctx.moveTo(startX, startY);
+        
+        const steps = 10;
+        for (let s = 1; s <= steps; s++) {
+           const t = tailStartT + (particleT - tailStartT) * (s / steps);
+           const [tx, ty] = pointAtFraction(points, totalLength, t);
+           ctx.lineTo(tx, ty);
         }
+        
+        // Create linear gradient from tail to head
+        const [headX, headY] = pointAtFraction(points, totalLength, particleT);
+        const grad = ctx.createLinearGradient(startX, startY, headX, headY);
+        const colorTransparent = color + '00'; // Append 00 for 0 opacity
+        grad.addColorStop(0, colorTransparent); 
+        grad.addColorStop(1, color); 
+        
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = particleRadius * 1.5;
+        ctx.lineCap = 'round';
+        ctx.globalAlpha = fadeAlpha;
+        ctx.stroke();
+        
+        // Draw the glowing head (sprite) at the very front
+        const scale = particleRadius / 5;
+        const spriteSize = (5 + 12) * 2 * scale;
+        ctx.drawImage(sprite, headX - spriteSize / 2, headY - spriteSize / 2, spriteSize, spriteSize);
+        
+        ctx.restore();
       }
-      ctx.restore();
 
       // ── 3. Target pulse ring (Deferred to deduplicate) ────────────
       const key = `${arc.destLat},${arc.destLng}`;

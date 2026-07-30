@@ -27,7 +27,7 @@ const ProxmoxNodeRow = ({ node }: { node: any }) => {
           <td colSpan={4} className="py-2 pl-8 text-soc-muted text-xs italic">Loading VMs/LXCs...</td>
         </tr>
       ) : (
-        vmsData?.data?.map((vm: any) => (
+        [...(vmsData?.data?.qemu || []).map((v: any) => ({ ...v, type: 'qemu' })), ...(vmsData?.data?.lxc || []).map((v: any) => ({ ...v, type: 'lxc' }))].map((vm: any) => (
           <tr key={`${node.node}-${vm.vmid}`} className="border-b border-gray-800/20 bg-black/20 text-sm hover:bg-white/[0.01] transition-colors">
             <td className="py-2 pl-8 text-soc-muted font-mono flex items-center gap-2">
               <span className="text-gray-600">└─</span> 
