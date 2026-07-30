@@ -12,6 +12,7 @@ from app.api.analytics import router as analytics_router
 from app.api.pentest import router as pentest_router
 from app.api.forensics import router as forensics_router
 from app.api.users import router as users_router
+from app.api.intel import router as intel_router
 from app.core.websockets import manager
 from app.core.security import verify_token
 import json
@@ -40,6 +41,7 @@ app.include_router(analytics_router, prefix=f"{settings.API_V1_STR}/analytics", 
 app.include_router(pentest_router, prefix=f"{settings.API_V1_STR}/pentest", tags=["pentest"])
 app.include_router(forensics_router, prefix=f"{settings.API_V1_STR}/forensics", tags=["forensics"])
 app.include_router(users_router, prefix=f"{settings.API_V1_STR}/users", tags=["users"])
+app.include_router(intel_router, prefix=f"{settings.API_V1_STR}/intel", tags=["intel"])
 
 @app.websocket("/ws/threat-map")
 async def websocket_endpoint(websocket: WebSocket, token: str = Query(default=None)):
