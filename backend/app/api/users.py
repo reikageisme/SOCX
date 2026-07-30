@@ -142,7 +142,8 @@ def upload_avatar_me(file: UploadFile = File(...), db: Session = Depends(get_db)
         raise HTTPException(status_code=400, detail="Invalid file type. Only JPG, PNG, GIF are allowed.")
         
     filename = f"{user.id}{file_ext}"
-    filepath = os.path.join("uploads", "avatars", filename)
+    os.makedirs("uploads/avatars", exist_ok=True)
+    filepath = f"uploads/avatars/{filename}"
     
     with open(filepath, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
