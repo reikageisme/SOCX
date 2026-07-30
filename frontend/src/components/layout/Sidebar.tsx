@@ -1,4 +1,4 @@
-import { Shield, LayoutDashboard, Map, FileText, Settings, ShieldAlert, ChevronLeft, ChevronRight, AlertTriangle, Server, Network, ShieldCheck, ActivitySquare, Code } from 'lucide-react';
+import { Shield, LayoutDashboard, Map, FileText, Settings, ShieldAlert, ChevronLeft, ChevronRight, AlertTriangle, Server, Network, ShieldCheck, ActivitySquare } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
 const navItems = [

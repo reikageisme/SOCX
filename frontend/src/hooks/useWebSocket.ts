@@ -9,7 +9,7 @@ export const useWebSocket = (url: string | null) => {
 
   // Get store actions (stable from Zustand)
   const setWsConnected = useStore((state) => state.setWsConnected);
-  const addThreatEvent = useStore((state) => state.addThreatEvent);
+
   const addThreatEvents = useStore((state) => state.addThreatEvents);
 
   const eventBuffer = useRef<any[]>([]);

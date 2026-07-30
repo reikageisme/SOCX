@@ -1,6 +1,6 @@
 import React, { useMemo, useEffect, useState } from 'react';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
-import { ShieldAlert, Download, Activity } from 'lucide-react';
+
 import { useStore } from '../../store/useStore';
 
 interface HeaderStatsProps {
@@ -24,7 +24,7 @@ export const HeaderStats: React.FC<HeaderStatsProps> = ({ totalAttacks }) => {
       value: 0
     }));
 
-    threatEvents.forEach(event => {
+    threatEvents.forEach((event: any) => {
       const eventTime = new Date(event.timestamp).getTime();
       const diffMs = now - eventTime;
       if (diffMs >= 0 && diffMs < buckets * bucketSizeMs) {

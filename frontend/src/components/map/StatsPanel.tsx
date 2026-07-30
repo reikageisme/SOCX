@@ -1,6 +1,6 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import type { ThreatEvent } from './ThreatMapLayout';
-import { ChevronRight, ChevronLeft, Clock } from 'lucide-react';
+import { ChevronRight, ChevronLeft } from 'lucide-react';
 
 interface StatsPanelProps {
   events: ThreatEvent[];

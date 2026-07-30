@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Search, Download, Filter, ChevronDown, ChevronUp, Clock, Target, User, Activity, Terminal, Database, Sparkles, Send, AlertTriangle } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { apiFetch } from '../lib/api';

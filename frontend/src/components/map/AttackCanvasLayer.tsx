@@ -176,6 +176,7 @@ export const AttackCanvasLayer: React.FC<{ arcs: CanvasArcEvent[] }> = ({ arcs }
       properties: { index: i, sourceKind: arc.sourceKind },
     }));
 
+    // @ts-ignore
     index.load(features);
     return index;
   }, [arcs]);

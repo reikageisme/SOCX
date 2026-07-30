@@ -41,7 +41,38 @@ export const Assets = () => {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [activeSuggestion, setActiveSuggestion] = useState(0);
   const [cmdHistory, setCmdHistory] = useState<{time: string, cmd: string, status: string}[]>([]);
+  const [activeScanId, setActiveScanId] = useState<string | null>(null);
+  const [activeScanResult, setActiveScanResult] = useState<any>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    let interval: any;
+    if (activeScanId) {
+      interval = setInterval(async () => {
+        try {
+          const res = await apiFetch(`/api/v1/pentest/scan/${activeScanId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const data = await res.json();
+          setActiveScanResult(data);
+          
+          if (data.status === 'completed' || data.status === 'failed') {
+            clearInterval(interval);
+            setCmdHistory(prev => {
+              const newHist = [...prev];
+              if (newHist.length > 0 && newHist[0].status === 'Executing...') {
+                 newHist[0].status = data.status === 'completed' ? 'Success (See output)' : 'Failed';
+              }
+              return newHist;
+            });
+          }
+        } catch (e) {
+          // ignore
+        }
+      }, 2000);
+    }
+    return () => clearInterval(interval);
+  }, [activeScanId, token]);
 
   useEffect(() => {
     const fetchAssets = async () => {
@@ -88,10 +119,13 @@ export const Assets = () => {
           arguments: '-F -O' 
         })
       });
-      // Demo simulate
-      setTimeout(() => {
-        setScanningId(null);
-      }, 3000);
+      const data = await res.json();
+      if (data.scan_id) {
+         setActiveScanId(data.scan_id);
+         setActiveScanResult(null);
+         setCmdHistory(prev => [{ time: new Date().toLocaleTimeString(), cmd: `/${toolToUse} ${asset.ip_address}`, status: 'Executing...' }, ...prev].slice(0, 5));
+      }
+      setScanningId(null);
     } catch {
       setScanningId(null);
     }
@@ -166,7 +200,7 @@ export const Assets = () => {
     setShowSuggestions(false);
 
     try {
-      await apiFetch('/api/v1/pentest/scan', {
+      const res = await apiFetch('/api/v1/pentest/scan', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -174,12 +208,11 @@ export const Assets = () => {
         },
         body: JSON.stringify({ target: target, tool: cmd })
       });
-      
-      setCmdHistory(prev => {
-        const newHist = [...prev];
-        newHist[0].status = 'Success (Check Discord)';
-        return newHist;
-      });
+      const data = await res.json();
+      if (data.scan_id) {
+         setActiveScanId(data.scan_id);
+         setActiveScanResult(null);
+      }
     } catch {
       setCmdHistory(prev => {
         const newHist = [...prev];
@@ -274,6 +307,71 @@ export const Assets = () => {
                 </span>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Live Scan Result Panel */}
+        {activeScanResult && (
+          <div className="bg-slate-900 border border-teal-500/30 rounded-lg p-4 mt-2 font-mono text-sm shadow-[0_0_10px_rgba(20,184,166,0.1)]">
+            <div className="flex justify-between items-center mb-4 border-b border-slate-800 pb-2">
+               <div className="flex items-center gap-2">
+                  <span className="text-teal-400 font-bold uppercase">{activeScanResult.tool}</span>
+                  <span className="text-slate-500">on</span>
+                  <span className="text-indigo-300 font-bold">{activeScanResult.target}</span>
+               </div>
+               <div className="flex items-center gap-2">
+                  {activeScanResult.status === 'running' || activeScanResult.status === 'queued' ? (
+                     <span className="flex items-center gap-2 text-amber-400"><Clock size={14} className="animate-spin" /> {activeScanResult.status}</span>
+                  ) : activeScanResult.status === 'completed' ? (
+                     <span className="text-emerald-400 font-bold flex items-center gap-1"><Activity size={14} /> Completed</span>
+                  ) : (
+                     <span className="text-rose-400 font-bold flex items-center gap-1"><ShieldAlert size={14} /> Failed</span>
+                  )}
+                  <button onClick={() => { setActiveScanId(null); setActiveScanResult(null); }} className="text-slate-500 hover:text-white ml-2 text-xs border border-slate-700 px-2 py-0.5 rounded transition-colors bg-slate-800">Close</button>
+               </div>
+            </div>
+            
+            {/* Detailed output */}
+            <div className="max-h-64 overflow-y-auto custom-scrollbar pr-2 space-y-4">
+               {activeScanResult.description ? (
+                  <div className="whitespace-pre-wrap text-slate-300 bg-black/30 p-3 rounded border border-slate-800/50">
+                     {activeScanResult.description.replace(/\*\*/g, '').replace(/`/g, '')}
+                  </div>
+               ) : activeScanResult.hosts ? (
+                  activeScanResult.hosts.map((host: any, idx: number) => (
+                    <div key={idx} className="bg-black/30 p-3 rounded border border-slate-800/50">
+                       <div className="text-emerald-300 mb-2">Host: {host.ip} ({host.state})</div>
+                       {host.os_matches && host.os_matches.length > 0 && (
+                          <div className="text-slate-400 mb-2 text-xs">OS: {host.os_matches[0].name} (Accuracy: {host.os_matches[0].accuracy}%)</div>
+                       )}
+                       {Object.keys(host.protocols || {}).map(proto => (
+                         <div key={proto} className="mt-2">
+                            <div className="text-teal-500 text-xs uppercase font-bold border-b border-slate-800 mb-1 inline-block pb-0.5">{proto} Ports</div>
+                            <table className="w-full text-left text-xs mt-1">
+                               <thead className="text-slate-500">
+                                 <tr><th className="py-1">Port</th><th className="py-1">State</th><th className="py-1">Service</th><th className="py-1">Version</th></tr>
+                               </thead>
+                               <tbody className="text-slate-300">
+                                 {host.protocols[proto].map((p: any) => (
+                                   <tr key={p.port} className="border-t border-slate-800/50">
+                                      <td className={`py-1 ${[22, 3389, 445].includes(p.port) ? 'text-rose-400 font-bold' : [80, 443].includes(p.port) ? 'text-amber-400' : 'text-teal-300'}`}>{p.port}</td>
+                                      <td className="py-1">{p.state}</td>
+                                      <td className="py-1">{p.name}</td>
+                                      <td className="py-1">{p.product} {p.version}</td>
+                                   </tr>
+                                 ))}
+                               </tbody>
+                            </table>
+                         </div>
+                       ))}
+                    </div>
+                  ))
+               ) : activeScanResult.error ? (
+                  <div className="text-rose-400 bg-rose-500/10 p-3 rounded border border-rose-500/20">{activeScanResult.error}</div>
+               ) : (
+                  <div className="text-slate-500 animate-pulse text-center py-4">Waiting for scan data...</div>
+               )}
+            </div>
           </div>
         )}
       </div>

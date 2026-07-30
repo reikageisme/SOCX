@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FileSearch, Upload, Activity, Server, ArrowRight } from 'lucide-react';
+import { FileSearch, Upload, Activity, Server } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 import { useStore } from '../store/useStore';
 

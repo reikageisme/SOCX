@@ -1,6 +1,6 @@
 import { useProxmoxNodes, useProxmoxVms, useDashboardMetrics } from '../hooks/useProxmox';
 import { useStore } from '../store/useStore';
-import { Server, Cpu, HardDrive, ShieldAlert, Activity } from 'lucide-react';
+import { Server, Cpu, HardDrive, ShieldAlert } from 'lucide-react';
 import { useSlaMetrics } from '../hooks/useAnalytics';
 import { Clock, Timer, Play, Square, RefreshCw, Plus } from 'lucide-react';
 import { apiFetch } from '../lib/api';

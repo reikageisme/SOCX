@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import { AISummaryButton } from '../components/AISummaryButton';
 import { apiFetch } from '../lib/api';
