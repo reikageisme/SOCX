@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Search, Download, Filter, ChevronDown, ChevronUp, Clock, Target, User, Activity } from 'lucide-react';
 import { useStore } from '../store/useStore';
+import { apiFetch } from '../lib/api';
 
 interface AuditLog {
   id: string;
@@ -20,7 +21,7 @@ export const LogsPage: React.FC = () => {
   const { data, isLoading } = useQuery({
     queryKey: ['logs'],
     queryFn: async () => {
-      const res = await fetch('/api/v1/logs', {
+      const res = await apiFetch('/api/v1/logs', {
         headers: { Authorization: `Bearer ${token}` }
       });
       return res.json();

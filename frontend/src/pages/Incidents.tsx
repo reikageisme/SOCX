@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import { AISummaryButton } from '../components/AISummaryButton';
+import { apiFetch } from '../lib/api';
 
 interface Incident {
   id: string;
@@ -23,7 +24,7 @@ export const Incidents = () => {
     const fetchIncidents = async () => {
       try {
         const token = localStorage.getItem('token') || '';
-        const res = await fetch('/api/v1/incidents', {
+        const res = await apiFetch('/api/v1/incidents', {
           headers: {
             'Authorization': `Bearer ${token}`
           }

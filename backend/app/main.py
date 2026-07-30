@@ -1,4 +1,6 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query
+from fastapi import FastAPI, Depends
+from app.api.endpoints import get_current_user
+from fastapi import WebSocket, WebSocketDisconnect, Query
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.api.endpoints import router as api_router
@@ -17,7 +19,7 @@ app = FastAPI(title=settings.PROJECT_NAME)
 # CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],  # Specific origins when credentials are True
+    allow_origins=[o.strip() for o in settings.CORS_ALLOWED_ORIGINS.split(",")],  # Specific origins when credentials are True
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -109,7 +111,7 @@ def health_check():
     }
 
 @app.get("/api/v1/system/data-sources/status")
-def get_data_sources_status():
+def get_data_sources_status(current_user: str = Depends(get_current_user)):
     last_event = pipeline.last_event_time.isoformat() + "Z" if pipeline.last_event_time else None
     last_pull = threat_intel_service.last_pull_time.isoformat() + "Z" if threat_intel_service.last_pull_time else None
     
@@ -135,11 +137,11 @@ class ValidateRequest(BaseModel):
     yaml_content: str
 
 @app.get("/api/v1/rules")
-def get_rules():
+def get_rules(current_user: str = Depends(get_current_user)):
     return {"rules": rule_manager.get_rules()}
 
 @app.post("/api/v1/rules/validate")
-def validate_rule(req: ValidateRequest):
+def validate_rule(req: ValidateRequest, current_user: str = Depends(get_current_user)):
     try:
         parsed = yaml.safe_load(req.yaml_content)
         if not parsed.get("name") or not parsed.get("selection"):
@@ -149,7 +151,7 @@ def validate_rule(req: ValidateRequest):
         return {"status": "error", "message": str(e)}
 
 @app.post("/api/v1/rules/dry-run")
-def dry_run_rule(req: ValidateRequest):
+def dry_run_rule(req: ValidateRequest, current_user: str = Depends(get_current_user)):
     try:
         parsed = yaml.safe_load(req.yaml_content)
         # Mock dry-run logic
@@ -173,7 +175,7 @@ def dry_run_rule(req: ValidateRequest):
         return {"status": "error", "message": str(e)}
 
 @app.get("/api/v1/logs")
-def get_logs():
+def get_logs(current_user: str = Depends(get_current_user)):
     from app.core.db import SessionLocal
     from app.models.incident import AuditLog
     db = SessionLocal()
@@ -183,7 +185,7 @@ def get_logs():
     return {"logs": res}
 
 @app.get("/api/v1/settings")
-def get_settings():
+def get_settings(current_user: str = Depends(get_current_user)):
     from app.config import settings
     def mask_key(k):
         if not k: return ""
@@ -204,7 +206,7 @@ class IncidentSummaryRequest(BaseModel):
     prompt: str
 
 @app.post("/api/v1/ai/summarize-incident")
-async def summarize_incident(req: IncidentSummaryRequest):
+async def summarize_incident(req: IncidentSummaryRequest, current_user: str = Depends(get_current_user)):
     try:
         from app.services.ai.provider import AIProviderFactory
         provider_type = getattr(settings, "AI_PROVIDER", "ollama")
@@ -222,7 +224,7 @@ async def summarize_incident(req: IncidentSummaryRequest):
 
 # Setup API cho SOAR-lite
 @app.get("/api/v1/incidents")
-def get_incidents():
+def get_incidents(current_user: str = Depends(get_current_user)):
     from app.core.db import SessionLocal
     db = SessionLocal()
     incidents = db.query(Incident).order_by(Incident.created_at.desc()).limit(50).all()
@@ -244,7 +246,7 @@ def get_incidents():
     return {"incidents": res}
 
 @app.get("/api/v1/intel/lookup")
-def lookup_ioc(q: str):
+def lookup_ioc(q: str, current_user: str = Depends(get_current_user)):
     is_malicious = threat_intel_service.check_ip(q)
     metadata = threat_intel_service.malicious_ips.get(q, {})
     return {
@@ -254,7 +256,7 @@ def lookup_ioc(q: str):
     }
 
 @app.get("/api/v1/reports/executive")
-def executive_report():
+def executive_report(current_user: str = Depends(get_current_user)):
     from app.core.db import SessionLocal
     from sqlalchemy import func
     db = SessionLocal()
@@ -277,13 +279,13 @@ def executive_report():
     }
 
 @app.post("/api/v1/actions/{action_id}/approve")
-def approve_action(action_id: str):
+def approve_action(action_id: str, current_user: str = Depends(get_current_user)):
     if playbook_executor.approve_action(action_id, "admin"):
         return {"status": "success"}
     return {"status": "failed", "message": "Action not found or already processed"}
 
 @app.post("/api/v1/actions/{action_id}/reject")
-def reject_action(action_id: str):
+def reject_action(action_id: str, current_user: str = Depends(get_current_user)):
     if playbook_executor.reject_action(action_id, "admin"):
         return {"status": "success"}
     return {"status": "failed", "message": "Action not found or already processed"}
@@ -309,7 +311,7 @@ def get_event_history(
     return {"events": events, "count": len(events)}
 
 @app.get("/api/v1/events/stats")
-def get_event_stats(minutes: int = 60):
+def get_event_stats(minutes: int = 60, current_user: str = Depends(get_current_user)):
     """Get aggregated attack statistics from ClickHouse."""
     stats = clickhouse_storage.get_stats(minutes=min(minutes, 10080))
     return {"stats": stats}

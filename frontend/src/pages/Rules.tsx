@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ShieldAlert, Play, Check, XCircle, FileCode } from 'lucide-react';
 import { useStore } from '../store/useStore';
+import { apiFetch } from '../lib/api';
 
 interface Rule {
   name: string;
@@ -20,7 +21,7 @@ export const RulesPage: React.FC = () => {
   const { data, isLoading } = useQuery({
     queryKey: ['rules'],
     queryFn: async () => {
-      const res = await fetch('/api/v1/rules', {
+      const res = await apiFetch('/api/v1/rules', {
         headers: { Authorization: `Bearer ${token}` }
       });
       return res.json();
@@ -29,7 +30,7 @@ export const RulesPage: React.FC = () => {
 
   const validateRule = async () => {
     try {
-      const res = await fetch('/api/v1/rules/validate', {
+      const res = await apiFetch('/api/v1/rules/validate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -53,7 +54,7 @@ export const RulesPage: React.FC = () => {
 
   const dryRunRule = async () => {
     try {
-      const res = await fetch('/api/v1/rules/dry-run', {
+      const res = await apiFetch('/api/v1/rules/dry-run', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

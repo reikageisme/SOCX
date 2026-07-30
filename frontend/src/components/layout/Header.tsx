@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useStore } from '../../store/useStore';
 import { ShieldCheck, Bell, LogOut, User, Settings, AlertTriangle, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { apiFetch } from '../../lib/api';
 
 export const Header = () => {
   const wsConnected = useStore((state) => state.wsConnected);
@@ -21,7 +22,7 @@ export const Header = () => {
     e.preventDefault();
     if (!iocQuery) return;
     try {
-      const res = await fetch(`/api/v1/intel/lookup?q=${encodeURIComponent(iocQuery)}`);
+      const res = await apiFetch(`/api/v1/intel/lookup?q=${encodeURIComponent(iocQuery)}`);
       const data = await res.json();
       setLookupResult(data);
     } catch (err) {

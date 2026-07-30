@@ -3,6 +3,7 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     PROJECT_NAME: str = "ACS Control Plane"
     API_V1_STR: str = "/api/v1"
+    CORS_ALLOWED_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
     
     # Proxmox VE Configuration
     PROXMOX_HOST: str = "127.0.0.1"

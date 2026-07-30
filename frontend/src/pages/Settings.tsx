@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../store/useStore';
 import { Settings as SettingsIcon, Save, Key, Clock, ShieldCheck, Eye, EyeOff } from 'lucide-react';
+import { apiFetch } from '../lib/api';
 
 export const SettingsPage: React.FC = () => {
   const token = useStore((state) => state.token);
@@ -13,7 +14,7 @@ export const SettingsPage: React.FC = () => {
   const [saveMsg, setSaveMsg] = useState('');
 
   useEffect(() => {
-    fetch('/api/v1/settings', {
+    apiFetch('/api/v1/settings', {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(r => r.json())

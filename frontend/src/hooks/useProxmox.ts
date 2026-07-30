@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useStore } from '../store/useStore';
+import { apiFetch } from '../lib/api';
 
 const API_BASE_URL = '/api/v1';
 
@@ -9,15 +10,8 @@ export const useProxmoxNodes = () => {
   return useQuery({
     queryKey: ['proxmoxNodes'],
     queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/proxmox/nodes`, { 
-        headers: {
-          'Authorization': `Bearer ${token}`
-        } 
-      });
+      const response = await apiFetch(`${API_BASE_URL}/proxmox/nodes`);
       if (!response.ok) {
-        if (response.status === 401) {
-          useStore.getState().setToken(null);
-        }
         throw new Error('Network response was not ok');
       }
       return response.json();
@@ -32,15 +26,8 @@ export const useProxmoxVms = (nodeName: string) => {
   return useQuery({
     queryKey: ['proxmoxVms', nodeName],
     queryFn: async () => {
-      const response = await fetch(`${API_BASE_URL}/proxmox/nodes/${nodeName}/vms`, { 
-        headers: {
-          'Authorization': `Bearer ${token}`
-        } 
-      });
+      const response = await apiFetch(`${API_BASE_URL}/proxmox/nodes/${nodeName}/vms`);
       if (!response.ok) {
-        if (response.status === 401) {
-          useStore.getState().setToken(null);
-        }
         throw new Error('Network response was not ok');
       }
       return response.json();
@@ -55,15 +42,8 @@ export const useProxmoxVms = (nodeName: string) => {
     return useQuery({
       queryKey: ['dashboardMetrics'],
       queryFn: async () => {
-        const response = await fetch(`${API_BASE_URL}/system/dashboard-metrics`, { 
-          headers: {
-            'Authorization': `Bearer ${token}`
-          } 
-        });
+        const response = await apiFetch(`${API_BASE_URL}/system/dashboard-metrics`);
         if (!response.ok) {
-          if (response.status === 401) {
-            useStore.getState().setToken(null);
-          }
           throw new Error('Network response was not ok');
         }
         return response.json();

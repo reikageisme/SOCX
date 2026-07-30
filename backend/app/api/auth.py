@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from app.api.endpoints import get_current_user
 from fastapi.security import OAuth2PasswordRequestForm
 from app.core.security import verify_password, create_access_token, get_password_hash
 
@@ -30,5 +31,5 @@ def login_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.get("/users/me")
-def read_users_me():
+def read_users_me(current_user: str = Depends(get_current_user)):
     return {"username": "tahnadmin"}

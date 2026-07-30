@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Sparkles } from 'lucide-react';
+import { apiFetch } from '../lib/api';
 
 interface AISummaryButtonProps {
   title: string;
@@ -27,7 +28,7 @@ export const AISummaryButton: React.FC<AISummaryButtonProps> = ({
     setError(null);
 
     try {
-      const res = await fetch('/api/v1/ai/summarize-incident', {
+      const res = await apiFetch('/api/v1/ai/summarize-incident', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

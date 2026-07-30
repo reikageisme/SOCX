@@ -120,6 +120,29 @@ const CLUSTER_ZOOM_THRESHOLD = 4;
 
 // ─── React component ─────────────────────────────────────────────────────────
 
+
+function createGlowSprite(color: string, radius: number, blur: number): HTMLCanvasElement {
+  const canvas = document.createElement('canvas');
+  const size = (radius + blur) * 2;
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    const center = size / 2;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = blur;
+    ctx.fillStyle = COLOR_WHITE;
+    ctx.beginPath();
+    ctx.arc(center, center, radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  return canvas;
+}
+
+const cyanParticleSprite = createGlowSprite(COLOR_CYAN, 5, 12);
+const purpleParticleSprite = createGlowSprite(COLOR_PURPLE, 5, 12);
+const cyanClusterSprite = createGlowSprite(COLOR_CYAN, 30, 10);
+
 export const AttackCanvasLayer: React.FC<{ arcs: CanvasArcEvent[] }> = ({ arcs }) => {
   const map = useMap();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -245,7 +268,7 @@ export const AttackCanvasLayer: React.FC<{ arcs: CanvasArcEvent[] }> = ({ arcs }
       ctx.strokeStyle = color;
       ctx.lineWidth = weight;
       ctx.shadowColor = color;
-      ctx.shadowBlur = 2; // Reduced from 8 for performance
+      ctx.shadowBlur = 0; // Disabled for performance, using offscreen sprite for glow
       ctx.beginPath();
       ctx.moveTo(points[0], points[1]);
       for (let j = 1; j <= ARC_SEGMENTS; j++) {
@@ -261,12 +284,10 @@ export const AttackCanvasLayer: React.FC<{ arcs: CanvasArcEvent[] }> = ({ arcs }
 
       ctx.save();
       ctx.globalAlpha = fadeAlpha;
-      ctx.fillStyle = COLOR_WHITE;
-      ctx.shadowColor = color;
-      ctx.shadowBlur = 4; // Reduced from 12 for performance
-      ctx.beginPath();
-      ctx.arc(px, py, particleRadius, 0, Math.PI * 2);
-      ctx.fill();
+      const sprite = color === COLOR_CYAN ? cyanParticleSprite : purpleParticleSprite;
+      const scale = particleRadius / 5;
+      const spriteSize = (5 + 12) * 2 * scale;
+      ctx.drawImage(sprite, px - spriteSize / 2, py - spriteSize / 2, spriteSize, spriteSize);
       ctx.restore();
 
       // ── 3. Target pulse ring (Deferred to deduplicate) ────────────
@@ -312,14 +333,15 @@ export const AttackCanvasLayer: React.FC<{ arcs: CanvasArcEvent[] }> = ({ arcs }
         // Draw cluster circle
         ctx.save();
         ctx.globalAlpha = 0.85;
-        ctx.fillStyle = '#0e7490'; // dark cyan
+        const scale = clusterRadius / 30;
+        const spriteSize = (30 + 10) * 2 * scale;
+        // Draw glow sprite
+        ctx.drawImage(cyanClusterSprite, pt.x - spriteSize / 2, pt.y - spriteSize / 2, spriteSize, spriteSize);
+        // Draw sharp border
         ctx.strokeStyle = COLOR_CYAN;
         ctx.lineWidth = 2;
-        ctx.shadowColor = COLOR_CYAN;
-        ctx.shadowBlur = 4; // Reduced from 10 for performance
         ctx.beginPath();
         ctx.arc(pt.x, pt.y, clusterRadius, 0, Math.PI * 2);
-        ctx.fill();
         ctx.stroke();
         ctx.restore();
 

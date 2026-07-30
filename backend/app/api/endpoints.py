@@ -81,7 +81,7 @@ class NetworkEvent(BaseModel):
 from app.core.pipeline import pipeline
 
 @router.post("/events/network")
-async def receive_network_event(event: NetworkEvent):
+async def receive_network_event(event: NetworkEvent, current_user: str = Depends(get_current_user)):
     # Map from NetworkEvent to the internal format expected by pipeline
     internal_event = {
         "pid": event.pid,

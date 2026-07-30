@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { apiFetch } from '../lib/api';
 
 export const Assets = () => {
   const [assets, setAssets] = useState<any[]>([]);
@@ -7,7 +8,7 @@ export const Assets = () => {
     const fetchAssets = async () => {
       try {
         const token = localStorage.getItem('token') || '';
-        const res = await fetch('/api/v1/assets', {
+        const res = await apiFetch('/api/v1/assets', {
           headers: {
             'Authorization': `Bearer ${token}`
           }
