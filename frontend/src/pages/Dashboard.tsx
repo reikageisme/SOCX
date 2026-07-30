@@ -2,6 +2,8 @@ import { useProxmoxNodes, useProxmoxVms, useDashboardMetrics } from '../hooks/us
 import { useStore } from '../store/useStore';
 import { Server, Cpu, HardDrive, ShieldAlert, Activity } from 'lucide-react';
 import { DashboardMap } from '../components/map/DashboardMap';
+import { useSlaMetrics } from '../hooks/useAnalytics';
+import { Clock, Timer } from 'lucide-react';
 
 const ProxmoxNodeRow = ({ node }: { node: any }) => {
   const { data: vmsData, isLoading } = useProxmoxVms(node.node);
@@ -55,10 +57,67 @@ const ProxmoxNodeRow = ({ node }: { node: any }) => {
 export const Dashboard = () => {
   const { data: proxmoxData, isLoading, isError } = useProxmoxNodes();
   const { data: metricsData } = useDashboardMetrics();
+  const { data: slaData } = useSlaMetrics();
   const threatEvents = useStore((state) => state.threatEvents);
 
   return (
     <div className="space-y-6">
+      {/* SLA & Response Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* MTTD Card */}
+        <div className="bg-gradient-to-br from-indigo-900/40 to-slate-900 rounded-xl p-6 border border-indigo-500/20 shadow-[0_0_15px_rgba(99,102,241,0.1)] relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-110"></div>
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-indigo-300 text-sm font-medium mb-1">Mean Time To Detect (MTTD)</p>
+              <div className="flex items-end gap-3 mt-2">
+                <h3 className="text-4xl font-bold text-white tracking-tight">
+                  {slaData?.mttd?.value !== undefined ? slaData.mttd.value : '-'}
+                  <span className="text-lg font-normal text-indigo-200 ml-1.5">{slaData?.mttd?.unit || 'min'}</span>
+                </h3>
+                {slaData?.mttd?.trend && (
+                  <span className={`text-xs font-semibold px-2 py-1 rounded-md mb-1.5 ${
+                    slaData.mttd.trend.startsWith('-') ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'
+                  }`}>
+                    {slaData.mttd.trend}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-400 mt-3">Average time to detect a potential threat</p>
+            </div>
+            <div className="p-3 bg-indigo-500/20 rounded-xl shadow-inner border border-indigo-400/20">
+              <Clock className="w-7 h-7 text-indigo-400" />
+            </div>
+          </div>
+        </div>
+
+        {/* MTTR Card */}
+        <div className="bg-gradient-to-br from-emerald-900/40 to-slate-900 rounded-xl p-6 border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)] relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-bl-full -mr-8 -mt-8 transition-transform group-hover:scale-110"></div>
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-emerald-300 text-sm font-medium mb-1">Mean Time To Respond (MTTR)</p>
+              <div className="flex items-end gap-3 mt-2">
+                <h3 className="text-4xl font-bold text-white tracking-tight">
+                  {slaData?.mttr?.value !== undefined ? slaData.mttr.value : '-'}
+                  <span className="text-lg font-normal text-emerald-200 ml-1.5">{slaData?.mttr?.unit || 'min'}</span>
+                </h3>
+                {slaData?.mttr?.trend && (
+                  <span className={`text-xs font-semibold px-2 py-1 rounded-md mb-1.5 ${
+                    slaData.mttr.trend.startsWith('-') ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'
+                  }`}>
+                    {slaData.mttr.trend}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-400 mt-3">Based on {slaData?.resolved_count || 0} resolved incidents</p>
+            </div>
+            <div className="p-3 bg-emerald-500/20 rounded-xl shadow-inner border border-emerald-400/20">
+              <Timer className="w-7 h-7 text-emerald-400" />
+            </div>
+          </div>
+        </div>
+      </div>
       {/* Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-soc-card rounded-xl p-6 border border-gray-800 shadow-lg relative overflow-hidden group">
