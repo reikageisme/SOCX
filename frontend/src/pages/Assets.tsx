@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { apiFetch } from '../lib/api';
 import { useStore } from '../store/useStore';
-import { ShieldAlert, Server, Activity } from 'lucide-react';
+import { ShieldAlert, Server, Activity, Search, Clock } from 'lucide-react';
 
 interface Asset {
   id: string;
@@ -15,6 +15,7 @@ interface Asset {
 
 export const Assets = () => {
   const [assets, setAssets] = useState<Asset[]>([]);
+  const [scanningId, setScanningId] = useState<string | null>(null);
   const token = useStore((state) => state.token);
 
   useEffect(() => {
@@ -46,6 +47,27 @@ export const Assets = () => {
     }
   };
 
+  const handleScan = async (asset: Asset) => {
+    setScanningId(asset.id);
+    try {
+      const res = await apiFetch('/api/v1/pentest/scan', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ target: asset.ip_address, arguments: '-F -O' })
+      });
+      // In a full implementation, we'd wait for completion and update the DB.
+      // For demo, we just simulate a scan start.
+      setTimeout(() => {
+        setScanningId(null);
+      }, 5000);
+    } catch {
+      setScanningId(null);
+    }
+  };
+
   return (
     <div className="p-6 h-full flex flex-col space-y-6 animate-fade-in text-white">
       <div className="flex justify-between items-center">
@@ -62,6 +84,7 @@ export const Assets = () => {
                 <th className="p-4 font-medium">OS Version</th>
                 <th className="p-4 font-medium"><Activity size={16} className="inline mr-2" /> Criticality</th>
                 <th className="p-4 font-medium"><ShieldAlert size={16} className="inline mr-2 text-rose-500" /> Vulnerabilities (CVEs)</th>
+                <th className="p-4 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/50 text-slate-300">
@@ -94,11 +117,21 @@ export const Assets = () => {
                         <span className="text-slate-500 text-sm">No known CVEs</span>
                       )}
                     </td>
+                    <td className="p-4">
+                      <button 
+                        onClick={() => handleScan(asset)}
+                        disabled={scanningId === asset.id}
+                        className="bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/30 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1 disabled:opacity-50"
+                      >
+                        {scanningId === asset.id ? <Clock size={14} className="animate-spin" /> : <Search size={14} />}
+                        {scanningId === asset.id ? 'Scanning...' : 'Scan'}
+                      </button>
+                    </td>
                   </tr>
                 );
               })}
               {assets.length === 0 && (
-                <tr><td colSpan={5} className="p-8 text-center text-slate-500">No assets found.</td></tr>
+                <tr><td colSpan={6} className="p-8 text-center text-slate-500">No assets found.</td></tr>
               )}
             </tbody>
           </table>

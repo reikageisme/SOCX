@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../store/useStore';
-import { Settings as SettingsIcon, Save, Key, Clock, ShieldCheck, Eye, EyeOff } from 'lucide-react';
+import { Settings as SettingsIcon, Save, Key, Clock, ShieldCheck, Eye, EyeOff, MessageCircle, Send } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 
 export const SettingsPage: React.FC = () => {
@@ -12,6 +12,9 @@ export const SettingsPage: React.FC = () => {
   const [showKeys, setShowKeys] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
+  const [telegramToken, setTelegramToken] = useState('');
+  const [telegramChatId, setTelegramChatId] = useState('');
+  const [testTelegramStatus, setTestTelegramStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
 
   useEffect(() => {
     apiFetch('/api/v1/settings', {
@@ -24,6 +27,8 @@ export const SettingsPage: React.FC = () => {
           setAiProvider(data.ai_provider);
           setOllamaUrl(data.ollama_url || 'http://localhost:11434');
           setGeminiKey(data.gemini_key || '');
+          setTelegramToken(data.telegram_token || '');
+          setTelegramChatId(data.telegram_chat_id || '');
         }
       });
   }, [token]);
@@ -36,6 +41,26 @@ export const SettingsPage: React.FC = () => {
       setSaveMsg('Settings updated successfully!');
       setTimeout(() => setSaveMsg(''), 3000);
     }, 1000);
+  };
+
+  const handleTestTelegram = async () => {
+    if (!telegramToken || !telegramChatId) return;
+    setTestTelegramStatus('testing');
+    try {
+      const res = await apiFetch('/api/v1/system/telegram/test', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ token: telegramToken, chat_id: telegramChatId })
+      });
+      if (res.ok) setTestTelegramStatus('success');
+      else setTestTelegramStatus('error');
+    } catch {
+      setTestTelegramStatus('error');
+    }
+    setTimeout(() => setTestTelegramStatus('idle'), 3000);
   };
 
   if (!settings) {
@@ -179,6 +204,47 @@ export const SettingsPage: React.FC = () => {
               <span className="text-sm text-slate-500">
                 Recommended: 15 minutes to avoid rate-limiting on free tiers.
               </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Telegram Webhooks */}
+        <div className="bg-slate-900/50 rounded-2xl border border-slate-700 p-6 backdrop-blur-md">
+          <h2 className="text-xl font-semibold text-slate-200 flex items-center gap-2 mb-6">
+            <MessageCircle size={20} className="text-blue-400" />
+            Alerting Webhooks (Telegram)
+          </h2>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-400 mb-1">Telegram Bot Token</label>
+              <input 
+                type={showKeys ? "text" : "password"}
+                value={telegramToken}
+                onChange={(e) => setTelegramToken(e.target.value)}
+                placeholder="e.g. 123456789:ABCdefGHIjklmNoPQRstUVwxyZ"
+                className="bg-slate-950/50 border border-slate-700 rounded-lg px-4 py-2 w-full text-slate-200 focus:outline-none focus:border-blue-500 font-mono"
+              />
+            </div>
+            <div className="flex gap-4 items-end">
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-slate-400 mb-1">Chat ID</label>
+                <input 
+                  type="text"
+                  value={telegramChatId}
+                  onChange={(e) => setTelegramChatId(e.target.value)}
+                  placeholder="e.g. -1001234567890"
+                  className="bg-slate-950/50 border border-slate-700 rounded-lg px-4 py-2 w-full text-slate-200 focus:outline-none focus:border-blue-500 font-mono"
+                />
+              </div>
+              <button
+                onClick={handleTestTelegram}
+                disabled={testTelegramStatus === 'testing' || !telegramToken || !telegramChatId}
+                className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 mb-[2px]"
+              >
+                <Send size={18} />
+                {testTelegramStatus === 'testing' ? 'Sending...' : testTelegramStatus === 'success' ? 'Sent!' : testTelegramStatus === 'error' ? 'Failed' : 'Test'}
+              </button>
             </div>
           </div>
         </div>

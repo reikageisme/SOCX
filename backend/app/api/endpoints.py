@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
+from pydantic import BaseModel
 from jose import jwt, JWTError
 from app.config import settings
 from app.services.proxmox import proxmox_service

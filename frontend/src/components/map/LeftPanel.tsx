@@ -8,9 +8,10 @@ interface LeftPanelProps {
   setActiveLayers: (layers: string[]) => void;
   isCollapsed: boolean;
   onToggle: () => void;
+  onEventClick?: (event: ThreatEvent) => void;
 }
 
-export const LeftPanel: React.FC<LeftPanelProps> = ({ events, activeLayers, setActiveLayers, isCollapsed, onToggle }) => {
+export const LeftPanel: React.FC<LeftPanelProps> = ({ events, activeLayers, setActiveLayers, isCollapsed, onToggle, onEventClick }) => {
   const toggleLayer = (layer: string) => {
     if (activeLayers.includes(layer)) {
       setActiveLayers(activeLayers.filter(l => l !== layer));
@@ -73,7 +74,11 @@ export const LeftPanel: React.FC<LeftPanelProps> = ({ events, activeLayers, setA
           </h3>
           <div className="flex-1 overflow-y-auto px-5 pb-5 space-y-2 custom-scrollbar">
             {events.map((event) => (
-              <div key={event.id} className="group cursor-pointer border-b border-gray-800/50 pb-2 mb-2 last:border-0 hover:bg-white/5 transition-colors p-2 -mx-2 rounded">
+              <div 
+                key={event.id} 
+                onClick={() => onEventClick && onEventClick(event)}
+                className="group cursor-pointer border-b border-gray-800/50 pb-2 mb-2 last:border-0 hover:bg-white/5 transition-colors p-2 -mx-2 rounded"
+              >
                 <div className="flex items-start gap-2">
                   <div className={`mt-1 flex-shrink-0 w-2 h-2 rounded-full ${
                     event.type === 'Malware' || event.type === 'malicious_ip' ? 'bg-red-500' :

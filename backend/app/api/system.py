@@ -2,6 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from typing import List
 import logging
 from app.api.endpoints import get_current_user
+from app.services.telegram import telegram_service
+from pydantic import BaseModel
+import subprocess
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -54,3 +57,16 @@ def get_container_logs(container_name: str, lines: int = 500, current_user: str 
         raise HTTPException(status_code=404, detail="Container not found")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+class TelegramTestRequest(BaseModel):
+    token: str
+    chat_id: str
+    message: str = "🚨 <b>TEST ALERT</b> 🚨\n\nThis is a test message from ACE SOC."
+
+@router.post("/telegram/test")
+def test_telegram(req: TelegramTestRequest, current_user: str = Depends(get_current_user)):
+    success = telegram_service.send_message(req.token, req.chat_id, req.message)
+    if success:
+        return {"status": "success", "message": "Test message sent"}
+    else:
+        raise HTTPException(status_code=500, detail="Failed to send message. Check token and chat ID.")

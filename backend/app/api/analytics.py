@@ -1,10 +1,13 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 import random
+import whois
+import logging
 
 from app.core.db import get_db
 from app.models.incident import Incident
+from app.api.endpoints import get_current_user
 
 router = APIRouter()
 
@@ -66,3 +69,28 @@ def get_sla_metrics(db: Session = Depends(get_db)):
         "total_incidents": total_incidents,
         "sla_compliance": 98.5
     }
+
+@router.get("/ip/{ip_address}")
+def get_ip_intel(ip_address: str, current_user: str = Depends(get_current_user)):
+    try:
+        try:
+            w = whois.whois(ip_address)
+            whois_data = {
+                "registrar": w.registrar if hasattr(w, 'registrar') else 'Unknown',
+                "country": w.country if hasattr(w, 'country') else 'Unknown',
+                "org": w.org if hasattr(w, 'org') else 'Unknown',
+                "emails": w.emails if hasattr(w, 'emails') else []
+            }
+        except Exception as we:
+            logging.error(f"Whois lookup failed for {ip_address}: {we}")
+            whois_data = {"error": "Whois lookup failed or unsupported"}
+            
+        return {
+            "status": "success",
+            "ip": ip_address,
+            "whois": whois_data,
+            "abuse_score": 0, # Mock score
+            "reports": []
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

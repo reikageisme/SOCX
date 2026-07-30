@@ -4,6 +4,8 @@ import { LeftPanel } from './LeftPanel';
 import { StatsPanel } from './StatsPanel';
 import { MapCore } from './MapCore';
 import { useStore } from '../../store/useStore';
+import { apiFetch } from '../../lib/api';
+import { X, Search, ShieldAlert, Globe, Server, User } from 'lucide-react';
 
 export interface Coordinates {
   lat: number;
@@ -45,6 +47,9 @@ export const ThreatMapLayout: React.FC = () => {
   const [totalAttacks, setTotalAttacks] = useState(0);
   const [isStatsCollapsed, setIsStatsCollapsed] = useState(false);
   const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
+  const [selectedIp, setSelectedIp] = useState<string | null>(null);
+  const [intelData, setIntelData] = useState<any>(null);
+  const [intelLoading, setIntelLoading] = useState(false);
   
   // Active layers for map filtering
   const [activeLayers, setActiveLayers] = useState<string[]>([
@@ -95,6 +100,25 @@ export const ThreatMapLayout: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
+  const handleEventClick = async (event: ThreatEvent) => {
+    const ip = event.source.query || event.dest?.query;
+    if (!ip) return;
+    
+    setSelectedIp(ip);
+    setIntelLoading(true);
+    setIntelData(null);
+    try {
+      const res = await apiFetch(`/api/v1/analytics/ip/${ip}`, {
+        headers: { 'Authorization': `Bearer ${useStore.getState().token}` }
+      });
+      const data = await res.json();
+      setIntelData(data);
+    } catch {
+      setIntelData({ error: 'Failed to fetch intel' });
+    }
+    setIntelLoading(false);
+  };
+
   return (
     <div className="relative w-full h-[calc(100vh-64px)] -m-8 flex flex-col bg-[#050810] text-white overflow-hidden font-inter">
       {/* Background Map Container */}
@@ -125,6 +149,7 @@ export const ThreatMapLayout: React.FC = () => {
             setActiveLayers={setActiveLayers}
             isCollapsed={isLeftCollapsed}
             onToggle={() => setIsLeftCollapsed(!isLeftCollapsed)}
+            onEventClick={handleEventClick}
           />
         </div>
         
@@ -137,6 +162,59 @@ export const ThreatMapLayout: React.FC = () => {
           />
         </div>
       </div>
+
+      {/* Intel Modal Overlay */}
+      {selectedIp && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 pointer-events-auto">
+          <div className="bg-[#0a0f1d] border border-cyan-900 shadow-[0_0_30px_rgba(6,182,212,0.15)] rounded-xl w-full max-w-lg overflow-hidden animate-fade-in flex flex-col">
+            <div className="flex justify-between items-center p-4 border-b border-gray-800 bg-cyan-950/20">
+              <h3 className="text-cyan-400 font-bold flex items-center gap-2">
+                <Search size={18} />
+                Threat Intel: {selectedIp}
+              </h3>
+              <button onClick={() => setSelectedIp(null)} className="text-gray-400 hover:text-white transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6">
+              {intelLoading ? (
+                <div className="flex justify-center items-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cyan-500"></div>
+                </div>
+              ) : intelData?.error ? (
+                <div className="text-rose-400 flex items-center gap-2 py-4">
+                  <ShieldAlert size={20} />
+                  {intelData.error}
+                </div>
+              ) : intelData ? (
+                <div className="space-y-4 text-sm">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-gray-900/50 p-3 rounded border border-gray-800">
+                      <div className="text-gray-500 text-xs mb-1 flex items-center gap-1"><Globe size={12}/> Country</div>
+                      <div className="text-gray-200 font-medium">{intelData.whois?.country || 'N/A'}</div>
+                    </div>
+                    <div className="bg-gray-900/50 p-3 rounded border border-gray-800">
+                      <div className="text-gray-500 text-xs mb-1 flex items-center gap-1"><Server size={12}/> Registrar</div>
+                      <div className="text-gray-200 font-medium truncate">{Array.isArray(intelData.whois?.registrar) ? intelData.whois?.registrar[0] : (intelData.whois?.registrar || 'N/A')}</div>
+                    </div>
+                    <div className="bg-gray-900/50 p-3 rounded border border-gray-800 col-span-2">
+                      <div className="text-gray-500 text-xs mb-1 flex items-center gap-1"><User size={12}/> Organization</div>
+                      <div className="text-gray-200 font-medium">{Array.isArray(intelData.whois?.org) ? intelData.whois?.org[0] : (intelData.whois?.org || 'N/A')}</div>
+                    </div>
+                  </div>
+                  <div className="bg-rose-950/20 border border-rose-900/50 rounded p-4 mt-4">
+                    <h4 className="text-rose-400 font-semibold mb-2 flex items-center gap-2"><ShieldAlert size={16} /> AbuseIPDB Score</h4>
+                    <div className="flex items-center gap-3">
+                      <div className="text-3xl font-bold text-rose-300">{intelData.abuse_score || 0}%</div>
+                      <div className="text-gray-400 text-xs">Confidence of abuse<br/>(Requires valid API key for live data)</div>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
