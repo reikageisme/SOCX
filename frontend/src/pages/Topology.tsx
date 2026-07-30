@@ -40,7 +40,7 @@ const CustomNode = ({ data, isConnectable }: NodeProps) => {
           {data.type === 'proxmox' && <Server size={20} />}
         </div>
         <div>
-          <div className="font-bold text-slate-200 text-sm">{data.label}</div>
+          <div className="font-bold text-slate-200 text-sm">{data.label as string}</div>
           {data.type === 'proxmox' && (
             <div className={`text-xs ${isOffline ? 'text-rose-400 font-bold' : 'text-slate-400'}`}>
               {isOffline ? 'OFFLINE' : `${(((data.cpu as number) || 0) * 100).toFixed(1)}% CPU`}
