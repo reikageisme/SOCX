@@ -256,7 +256,7 @@ export const LogsPage: React.FC = () => {
               </table>
             </div>
           </>
-        ) : (
+        ) : activeTab === 'containers' ? (
           <div className="flex flex-col h-full bg-[#0d1117]">
             {/* Container Selector Toolbar */}
             <div className="p-3 border-b border-slate-800 flex justify-between items-center bg-slate-900/40">
