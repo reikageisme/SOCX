@@ -8,6 +8,7 @@ services:
     container_name: acs-backend
     restart: unless-stopped
     privileged: true
+    user: root
     env_file:
       - ./backend/.env
     expose:

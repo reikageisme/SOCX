@@ -6,6 +6,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: aegis_backend
+    user: root
     restart: always
     ports:
       - "8000:8000"
