@@ -6,7 +6,6 @@ import { Dashboard } from './pages/Dashboard';
 import { ThreatMapPage } from './pages/ThreatMapPage';
 import { Login } from './pages/Login';
 import { Pentest } from './pages/Pentest';
-import { Rules } from './pages/Rules';
 import { RulesPage } from './pages/Rules';
 import { LogsPage } from './pages/Logs';
 import { SettingsPage } from './pages/Settings';
