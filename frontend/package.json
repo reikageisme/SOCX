@@ -12,6 +12,7 @@
   "dependencies": {
     "@tanstack/react-query": "^5.101.4",
     "@types/leaflet": "^1.9.21",
+    "@xyflow/react": "^12.11.2",
     "arc": "^1.0.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.26.0",

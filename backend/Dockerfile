@@ -10,6 +10,9 @@ RUN pip wheel --no-cache-dir --no-deps --wheel-dir /app/wheels -r requirements.t
 # Stage 2: Runtime
 FROM python:3.12-slim
 
+# Install system dependencies (nmap, tshark)
+RUN apt-get update && apt-get install -y --no-install-recommends nmap tshark && rm -rf /var/lib/apt/lists/*
+
 # Create non-root user
 RUN groupadd -r socuser && useradd -r -g socuser socuser
 

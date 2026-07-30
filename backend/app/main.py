@@ -9,6 +9,8 @@ from app.api.assets import router as assets_router
 from app.api.system import router as system_router
 from app.api.hunt import router as hunt_router
 from app.api.analytics import router as analytics_router
+from app.api.pentest import router as pentest_router
+from app.api.forensics import router as forensics_router
 from app.core.websockets import manager
 from app.core.security import verify_token
 import json
@@ -34,6 +36,8 @@ app.include_router(assets_router, prefix=f"{settings.API_V1_STR}/assets", tags=[
 app.include_router(system_router, prefix=f"{settings.API_V1_STR}/system", tags=["system"])
 app.include_router(hunt_router, prefix=f"{settings.API_V1_STR}/hunt", tags=["hunt"])
 app.include_router(analytics_router, prefix=f"{settings.API_V1_STR}/analytics", tags=["analytics"])
+app.include_router(pentest_router, prefix=f"{settings.API_V1_STR}/pentest", tags=["pentest"])
+app.include_router(forensics_router, prefix=f"{settings.API_V1_STR}/forensics", tags=["forensics"])
 
 @app.websocket("/ws/threat-map")
 async def websocket_endpoint(websocket: WebSocket, token: str = Query(default=None)):
