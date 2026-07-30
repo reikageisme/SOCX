@@ -1,13 +1,25 @@
 import React, { useEffect, useState } from 'react';
 import { apiFetch } from '../lib/api';
+import { useStore } from '../store/useStore';
+import { ShieldAlert, Server, Activity } from 'lucide-react';
+
+interface Asset {
+  id: string;
+  hostname: string;
+  ip_address: string;
+  os_version: string;
+  criticality: string;
+  owner: string;
+  cves: string; // JSON string
+}
 
 export const Assets = () => {
-  const [assets, setAssets] = useState<any[]>([]);
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const token = useStore((state) => state.token);
 
   useEffect(() => {
     const fetchAssets = async () => {
       try {
-        const token = localStorage.getItem('token') || '';
         const res = await apiFetch('/api/v1/assets', {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -22,35 +34,75 @@ export const Assets = () => {
       }
     };
     fetchAssets();
-  }, []);
+  }, [token]);
+
+  const parseCVEs = (cvesStr: string) => {
+    try {
+      const parsed = JSON.parse(cvesStr);
+      if (Array.isArray(parsed)) return parsed;
+      return [];
+    } catch {
+      return [];
+    }
+  };
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Asset Inventory</h1>
-      <div className="bg-gray-800 p-4 rounded-lg">
-        <table className="w-full text-left">
-          <thead>
-            <tr>
-              <th className="py-2">Hostname</th>
-              <th className="py-2">IP Address</th>
-              <th className="py-2">OS Version</th>
-              <th className="py-2">Criticality</th>
-              <th className="py-2">Owner</th>
-            </tr>
-          </thead>
-          <tbody>
-            {assets.map(asset => (
-              <tr key={asset.id} className="border-t border-gray-700">
-                <td className="py-2">{asset.hostname}</td>
-                <td className="py-2">{asset.ip_address}</td>
-                <td className="py-2">{asset.os_version || 'N/A'}</td>
-                <td className="py-2">{asset.criticality}</td>
-                <td className="py-2">{asset.owner || 'N/A'}</td>
+    <div className="p-6 h-full flex flex-col space-y-6 animate-fade-in text-white">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold font-inter bg-gradient-to-r from-teal-400 to-cyan-500 bg-clip-text text-transparent">Asset Inventory</h1>
+      </div>
+
+      <div className="bg-slate-900/50 rounded-2xl border border-slate-700 flex flex-col flex-1 backdrop-blur-md overflow-hidden">
+        <div className="overflow-auto flex-1 p-0">
+          <table className="w-full text-left border-collapse">
+            <thead className="bg-slate-900/80 text-slate-400 text-sm uppercase tracking-wider sticky top-0 z-10">
+              <tr>
+                <th className="p-4 font-medium"><Server size={16} className="inline mr-2" /> Hostname</th>
+                <th className="p-4 font-medium">IP Address</th>
+                <th className="p-4 font-medium">OS Version</th>
+                <th className="p-4 font-medium"><Activity size={16} className="inline mr-2" /> Criticality</th>
+                <th className="p-4 font-medium"><ShieldAlert size={16} className="inline mr-2 text-rose-500" /> Vulnerabilities (CVEs)</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-        {assets.length === 0 && <p className="mt-4 text-gray-400">No assets found.</p>}
+            </thead>
+            <tbody className="divide-y divide-slate-800/50 text-slate-300">
+              {assets.map(asset => {
+                const cves = parseCVEs(asset.cves);
+                return (
+                  <tr key={asset.id} className="hover:bg-slate-800/30 transition-colors group">
+                    <td className="p-4 whitespace-nowrap font-medium text-indigo-300">{asset.hostname}</td>
+                    <td className="p-4 whitespace-nowrap text-sm font-mono text-slate-400">{asset.ip_address}</td>
+                    <td className="p-4 whitespace-nowrap text-slate-300">{asset.os_version || 'N/A'}</td>
+                    <td className="p-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 rounded text-xs font-semibold uppercase border ${
+                        asset.criticality === 'high' ? 'bg-rose-500/20 text-rose-400 border-rose-500/50' : 
+                        asset.criticality === 'medium' ? 'bg-amber-500/20 text-amber-400 border-amber-500/50' : 
+                        'bg-slate-800 text-slate-400 border-slate-700'
+                      }`}>
+                        {asset.criticality}
+                      </span>
+                    </td>
+                    <td className="p-4">
+                      {cves.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {cves.map((cve: string) => (
+                            <span key={cve} className="px-2 py-0.5 rounded text-xs font-mono bg-rose-900/50 text-rose-300 border border-rose-800/50">
+                              {cve}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-slate-500 text-sm">No known CVEs</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+              {assets.length === 0 && (
+                <tr><td colSpan={5} className="p-8 text-center text-slate-500">No assets found.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

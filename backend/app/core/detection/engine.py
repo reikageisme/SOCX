@@ -85,15 +85,35 @@ class DetectionEngine:
         logger.warning(f"🚨 INCIDENT TRIGGERED: {rule['name']} from {source_ip}")
         db = SessionLocal()
         try:
+            # Correlate Vulnerabilities
+            severity = rule.get("severity", "medium")
+            daddr = events[0].get("metadata", {}).get("daddr") if events else None
+            vuln_notes = []
+            
+            if daddr:
+                from app.models.asset import Asset
+                asset = db.query(Asset).filter(Asset.ip_address == daddr).first()
+                if asset and asset.cves and asset.cves != "[]":
+                    try:
+                        cves = json.loads(asset.cves)
+                        if cves:
+                            severity = "critical"
+                            vuln_notes = [f"Target asset ({asset.hostname}) has known vulnerabilities: {', '.join(cves)}"]
+                            logger.warning(f"Asset vulnerability match! Escalating incident to CRITICAL for {daddr}")
+                    except Exception as e:
+                        logger.error(f"Error parsing CVEs: {e}")
+
             incident = Incident(
                 id=str(uuid.uuid4()),
                 title=rule["name"],
-                severity=rule.get("severity", "medium"),
+                severity=severity,
                 source_ip=source_ip,
+                dest_ip=daddr,
                 event_count=len(events),
                 mitre_tactics=json.dumps([rule.get("mitre", {}).get("tactic", "")]),
                 mitre_techniques=json.dumps([rule.get("mitre", {}).get("technique", "")]),
-                related_events=json.dumps([e.get("timestamp") for e in events])
+                related_events=json.dumps([e.get("timestamp") for e in events]),
+                timeline_notes=json.dumps(vuln_notes) if vuln_notes else "[]"
             )
             db.add(incident)
             db.commit()

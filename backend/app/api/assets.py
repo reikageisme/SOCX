@@ -16,6 +16,7 @@ class AssetBase(BaseModel):
     criticality: Optional[str] = "low"
     owner: Optional[str] = None
     client_id: Optional[str] = None
+    cves: Optional[str] = "[]"
 
 class AssetCreate(AssetBase):
     pass

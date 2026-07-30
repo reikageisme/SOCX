@@ -12,6 +12,8 @@ class Asset(Base):
     criticality = Column(String, default="low") # low, medium, high
     owner = Column(String, nullable=True)
     client_id = Column(String, nullable=True, index=True)
+    cves = Column(Text, default="[]") # JSON list of CVE IDs
+
     
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Search, Download, Filter, ChevronDown, ChevronUp, Clock, Target, User, Activity, Terminal, Database } from 'lucide-react';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { Search, Download, Filter, ChevronDown, ChevronUp, Clock, Target, User, Activity, Terminal, Database, Sparkles, Send, AlertTriangle } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { apiFetch } from '../lib/api';
 
@@ -22,7 +22,7 @@ interface Container {
 
 export const LogsPage: React.FC = () => {
   const token = useStore((state) => state.token);
-  const [activeTab, setActiveTab] = useState<'audit' | 'containers'>('audit');
+  const [activeTab, setActiveTab] = useState<'audit' | 'containers' | 'hunt'>('audit');
   
   // Audit Logs State
   const [searchTerm, setSearchTerm] = useState('');
@@ -32,6 +32,11 @@ export const LogsPage: React.FC = () => {
   const [selectedContainer, setSelectedContainer] = useState<string>('acs-backend');
   const [autoRefresh, setAutoRefresh] = useState(true);
   const terminalRef = useRef<HTMLPreElement>(null);
+
+  // Hunt State
+  const [huntQuery, setHuntQuery] = useState('');
+  const [huntResults, setHuntResults] = useState<any>(null);
+  const [isHunting, setIsHunting] = useState(false);
 
   // Queries
   const { data: auditData, isLoading: isLoadingAudit } = useQuery({
@@ -88,6 +93,28 @@ export const LogsPage: React.FC = () => {
     log.actor.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const handleHunt = async () => {
+    if (!huntQuery.trim()) return;
+    setIsHunting(true);
+    setHuntResults(null);
+    try {
+      const res = await apiFetch('/api/v1/hunt/query', {
+        method: 'POST',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json' 
+        },
+        body: JSON.stringify({ query: huntQuery })
+      });
+      const data = await res.json();
+      setHuntResults(data);
+    } catch (e) {
+      setHuntResults({ error: "Failed to connect to backend" });
+    } finally {
+      setIsHunting(false);
+    }
+  };
+
   const exportCSV = () => {
     if (!filteredLogs) return;
     const header = "ID,Actor,Action,Target,Timestamp,Details\n";
@@ -138,6 +165,16 @@ export const LogsPage: React.FC = () => {
           }`}
         >
           <Terminal size={18} /> Container Logs
+        </button>
+        <button
+          onClick={() => setActiveTab('hunt')}
+          className={`px-6 py-3 font-medium text-sm rounded-t-lg transition-colors flex items-center gap-2 ${
+            activeTab === 'hunt' 
+              ? 'bg-slate-800/80 text-purple-400 border-b-2 border-purple-500' 
+              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
+          }`}
+        >
+          <Sparkles size={18} /> AI Threat Hunting
         </button>
       </div>
 
@@ -272,7 +309,109 @@ export const LogsPage: React.FC = () => {
               )}
             </div>
           </div>
-        )}
+        ) : activeTab === 'hunt' ? (
+          <div className="flex flex-col h-full bg-[#0a0a0f]">
+            {/* Search Bar */}
+            <div className="p-6 border-b border-slate-800/80 bg-gradient-to-b from-purple-900/20 to-transparent">
+              <div className="max-w-4xl mx-auto">
+                <div className="relative flex items-center group">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <Sparkles size={22} className="text-purple-500 group-focus-within:text-purple-400 transition-colors" />
+                  </div>
+                  <input 
+                    type="text" 
+                    placeholder="Ask anything... (e.g. 'Show me all SSH attempts from Russia yesterday')" 
+                    value={huntQuery}
+                    onChange={(e) => setHuntQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleHunt()}
+                    className="w-full bg-slate-950/80 border border-purple-500/30 rounded-2xl pl-12 pr-16 py-4 text-slate-200 text-lg shadow-[0_0_15px_rgba(168,85,247,0.15)] focus:shadow-[0_0_25px_rgba(168,85,247,0.3)] focus:border-purple-400 outline-none transition-all"
+                  />
+                  <button 
+                    onClick={handleHunt}
+                    disabled={isHunting || !huntQuery.trim()}
+                    className="absolute inset-y-2 right-2 px-4 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl flex items-center transition-colors"
+                  >
+                    {isHunting ? (
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <Send size={18} />
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Results Area */}
+            <div className="flex-1 overflow-auto p-6 max-w-7xl mx-auto w-full">
+              {!huntResults && !isHunting && (
+                <div className="h-full flex flex-col items-center justify-center text-slate-500 space-y-4">
+                  <Sparkles size={48} className="text-slate-700/50" />
+                  <p className="text-lg">Enter a natural language query to hunt through the ClickHouse data lake.</p>
+                  <div className="flex gap-4 mt-4">
+                    <button onClick={() => setHuntQuery("Find top 10 IPs with critical severity")} className="px-4 py-2 rounded-full bg-slate-800/50 text-sm hover:bg-purple-900/30 hover:text-purple-300 transition-colors">Top 10 Critical IPs</button>
+                    <button onClick={() => setHuntQuery("Show events from Vietnam")} className="px-4 py-2 rounded-full bg-slate-800/50 text-sm hover:bg-purple-900/30 hover:text-purple-300 transition-colors">Events from Vietnam</button>
+                  </div>
+                </div>
+              )}
+
+              {isHunting && (
+                <div className="flex flex-col items-center justify-center h-40 space-y-4">
+                  <div className="w-8 h-8 border-4 border-purple-500/30 border-t-purple-500 rounded-full animate-spin" />
+                  <p className="text-purple-400 font-medium animate-pulse">AI is writing ClickHouse query...</p>
+                </div>
+              )}
+
+              {huntResults && (
+                <div className="space-y-6 animate-fade-in">
+                  {/* Generated SQL */}
+                  <div className="bg-slate-900/80 border border-slate-700 rounded-xl p-4">
+                    <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Generated SQL Query</h3>
+                    <code className="text-sm font-mono text-purple-300 whitespace-pre-wrap">{huntResults.sql}</code>
+                  </div>
+
+                  {/* Errors */}
+                  {huntResults.error && (
+                    <div className="bg-red-900/20 border border-red-500/50 rounded-xl p-4 flex items-start gap-3">
+                      <AlertTriangle className="text-red-400 shrink-0" />
+                      <p className="text-red-200">{huntResults.error}</p>
+                    </div>
+                  )}
+
+                  {/* Table Results */}
+                  {huntResults.results && huntResults.results.length > 0 ? (
+                    <div className="bg-slate-900/50 rounded-xl border border-slate-700 overflow-hidden">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm whitespace-nowrap">
+                          <thead className="bg-slate-800 text-slate-400 uppercase">
+                            <tr>
+                              {Object.keys(huntResults.results[0]).map((col) => (
+                                <th key={col} className="px-4 py-3 font-medium">{col}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-800/50 text-slate-300">
+                            {huntResults.results.map((row: any, i: number) => (
+                              <tr key={i} className="hover:bg-slate-800/50 transition-colors">
+                                {Object.values(row).map((val: any, j: number) => (
+                                  <td key={j} className="px-4 py-3 font-mono">{String(val)}</td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <div className="p-3 border-t border-slate-700 bg-slate-800/50 text-xs text-slate-500">
+                        Returned {huntResults.results.length} rows.
+                      </div>
+                    </div>
+                  ) : !huntResults.error && (
+                    <div className="text-center p-8 text-slate-400">No results found for this query.</div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );
