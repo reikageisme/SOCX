@@ -45,11 +45,12 @@ const ProxmoxNodeRow = ({ node }: { node: any }) => {
         </td>
         <td className="py-4 text-soc-muted">{(node.cpu * 100).toFixed(1)}%</td>
         <td className="py-4 text-soc-muted">{(node.mem / 1024 / 1024 / 1024).toFixed(1)} GB</td>
+        <td className="py-4"></td>
       </tr>
       
       {isLoading ? (
         <tr>
-          <td colSpan={4} className="py-2 pl-8 text-soc-muted text-xs italic">Loading VMs/LXCs...</td>
+          <td colSpan={5} className="py-2 pl-8 text-soc-muted text-xs italic">Loading VMs/LXCs...</td>
         </tr>
       ) : (
         [...(vmsData?.data?.qemu || []).map((v: any) => ({ ...v, type: 'qemu' })), ...(vmsData?.data?.lxc || []).map((v: any) => ({ ...v, type: 'lxc' }))].map((vm: any) => (
@@ -100,6 +101,9 @@ export const Dashboard = () => {
 
   return (
     <div className="space-y-6">
+      {/* Interactive Threat Map */}
+      <DashboardMap />
+      
       {/* SLA & Response Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* MTTD Card */}
