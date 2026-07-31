@@ -48,13 +48,14 @@ const CustomNode = ({ data, isConnectable }: NodeProps) => {
       
       <div className="flex items-center gap-3">
         <div className={`p-2 rounded-lg ${
-          data.layer === 'wan' ? 'bg-blue-500/20 text-blue-400' :
+          data.layer === 'wan' ? (data.type === 'waf' ? 'bg-orange-500/20 text-orange-400' : 'bg-blue-500/20 text-blue-400') :
           data.layer === 'lan' ? 'bg-amber-500/20 text-amber-400' :
           data.layer === 'overlay' ? 'bg-purple-500/20 text-purple-400' :
           isOffline ? 'bg-rose-500/20 text-rose-400' :
           'bg-teal-500/20 text-teal-400'
         }`}>
-          {data.layer === 'wan' && <Globe size={20} />}
+          {data.layer === 'wan' && data.type !== 'waf' && <Globe size={20} />}
+          {data.type === 'waf' && <Shield size={20} />}
           {data.layer === 'lan' && <Shield size={20} />}
           {data.layer === 'hypervisor' && <Server size={20} />}
           {data.layer === 'vm' && <Server size={20} />}
@@ -184,18 +185,38 @@ export const Topology = () => {
     }
 
     topologyData.data.edges.forEach((e: any) => {
-      newEdges.push({
-        id: `e-${e.source}-${e.target}`,
-        source: e.source,
-        target: e.target,
-        animated: e.type === 'overlay_tunnel' || e.type === 'virtual_link',
-        style: {
-          stroke: isDosSimulated && e.source === 'wan' && e.target === 'firewall' ? '#ef4444' : (e.type.includes('overlay') ? '#a855f7' : '#14b8a6'),
-          strokeWidth: isDosSimulated && e.source === 'wan' && e.target === 'firewall' ? 4 : 2
-        },
-        label: isDosSimulated && e.source === 'wan' && e.target === 'firewall' ? 'L7 DDoS Flood' : undefined,
-        labelStyle: isDosSimulated ? { fill: '#ef4444', fontWeight: 'bold' } : undefined
-      });
+        let strokeColor = e.type.includes('overlay') ? '#a855f7' : '#14b8a6';
+        let strokeWidth = 2;
+        let edgeLabel = undefined;
+        let labelStyle = undefined;
+
+        if (isDosSimulated) {
+          if (e.source === 'wan' && e.target === 'cloudflare') {
+            strokeColor = '#ef4444';
+            strokeWidth = 4;
+            edgeLabel = 'L7 DDoS & Bot Flood';
+            labelStyle = { fill: '#ef4444', fontWeight: 'bold' };
+          } else if (e.source === 'cloudflare' && e.target === 'firewall') {
+            edgeLabel = 'Clean Traffic (Blocked by WAF)';
+            strokeColor = '#10b981'; // green for clean
+          } else if (e.source === 'wan' && e.target === 'firewall') {
+             // Fallback if cloudflare is not present
+            strokeColor = '#ef4444';
+            strokeWidth = 4;
+            edgeLabel = 'L7 DDoS Flood';
+            labelStyle = { fill: '#ef4444', fontWeight: 'bold' };
+          }
+        }
+
+        newEdges.push({
+          id: `e-${e.source}-${e.target}`,
+          source: e.source,
+          target: e.target,
+          animated: e.type === 'overlay_tunnel' || e.type === 'virtual_link' || (isDosSimulated && e.source === 'wan' && e.target === 'cloudflare'),
+          style: { stroke: strokeColor, strokeWidth },
+          label: edgeLabel,
+          labelStyle: labelStyle
+        });
     });
 
     setNodes(newNodes);

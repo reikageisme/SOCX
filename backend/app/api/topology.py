@@ -42,6 +42,12 @@ def get_topology(current_user: str = Depends(get_current_user)):
         "type": "internet",
         "layer": "wan"
     })
+    nodes.append({
+        "id": "cloudflare",
+        "label": "Cloudflare WAF / CDN",
+        "type": "waf",
+        "layer": "wan"
+    })
 
     # Layer: LAN
     nodes.append({
@@ -50,7 +56,10 @@ def get_topology(current_user: str = Depends(get_current_user)):
         "type": "firewall",
         "layer": "lan"
     })
-    edges.append({"source": "wan", "target": "firewall", "type": "uplink"})
+    
+    # WAN -> Cloudflare -> Firewall
+    edges.append({"source": "wan", "target": "cloudflare", "type": "uplink"})
+    edges.append({"source": "cloudflare", "target": "firewall", "type": "uplink"})
 
     # Try to load from Redis cache first for faster response
     cached_payload = None
