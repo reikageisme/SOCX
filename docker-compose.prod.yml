@@ -5,6 +5,7 @@ services:
     build: 
       context: ./backend
       dockerfile: Dockerfile
+    image: acs-backend:latest
     container_name: acs-backend
     restart: unless-stopped
     privileged: true
@@ -34,6 +35,7 @@ services:
     build: 
       context: ./frontend
       dockerfile: Dockerfile
+    image: acs-frontend:latest
     container_name: acs-frontend
     restart: unless-stopped
     expose:
@@ -83,8 +85,11 @@ services:
 
 networks:
   acs_internal:
+    name: acs-network
     driver: bridge
 
 volumes:
   acs_data:
+    name: acs-data
   acs_mongodb_data:
+    name: acs-mongodb-data

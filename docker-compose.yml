@@ -5,6 +5,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+    image: acs-backend-dev:latest
     container_name: acs-backend
     user: root
     restart: always
@@ -32,6 +33,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    image: acs-frontend-dev:latest
     container_name: acs-frontend
     restart: always
     ports:
@@ -94,10 +96,15 @@ services:
 
 networks:
   soc_network:
+    name: acs-network-dev
     driver: bridge
 
 volumes:
   redis_data:
+    name: acs-redis-data
   clickhouse_data:
+    name: acs-clickhouse-data
   clickhouse_logs:
+    name: acs-clickhouse-logs
   mongodb_data:
+    name: acs-mongodb-data-dev

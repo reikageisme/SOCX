@@ -8,9 +8,16 @@ export const apiFetch = async (input: RequestInfo | URL, init?: RequestInit): Pr
     headers.set('Authorization', `Bearer ${token}`);
   }
 
-  const response = await fetch(input, {
+  // Add cache buster for GET requests
+  let urlStr = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+  if (!init?.method || init.method.toUpperCase() === 'GET') {
+    const sep = urlStr.includes('?') ? '&' : '?';
+    urlStr = `${urlStr}${sep}_t=${new Date().getTime()}`;
+  }
+
+  const response = await fetch(urlStr, {
     ...init,
-    cache: init?.cache || 'no-store',
+    cache: 'no-store',
     headers,
   });
 
