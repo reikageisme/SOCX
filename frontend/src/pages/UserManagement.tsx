@@ -23,7 +23,7 @@ export const UserManagement = () => {
   });
 
   useEffect(() => {
-    if (userRole === 'superadmin') {
+    if (userRole === 'superadmin' || userRole === 'Super_Administrator') {
       fetchUsers();
     } else {
       setError('Unauthorized access. Superadmin role required.');

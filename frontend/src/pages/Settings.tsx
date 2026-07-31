@@ -5,6 +5,7 @@ import { apiFetch } from '../lib/api';
 
 export const SettingsPage: React.FC = () => {
   const token = useStore((state) => state.token);
+  const userRole = useStore((state) => state.userRole);
   const [settings, setSettings] = useState<any>(null);
   const [aiProvider, setAiProvider] = useState('ollama');
   const [ollamaUrl, setOllamaUrl] = useState('http://localhost:11434');
