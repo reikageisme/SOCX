@@ -56,3 +56,4 @@ pyshark
 python-whois
 scapy
 pymongo
+redis

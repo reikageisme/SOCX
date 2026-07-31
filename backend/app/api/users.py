@@ -38,7 +38,7 @@ class UserResponse(BaseModel):
 @router.get("", response_model=List[UserResponse])
 def get_users(db: Any = Depends(get_db), current_user: str = Depends(get_current_user)):
     user = db.users.find_one({"username": current_user})
-    if not user or user.get("role") != "superadmin":
+    if not user or (user.get("role") != "superadmin" and user.get("role") != "Super_Administrator"):
         raise HTTPException(status_code=403, detail="Superadmin access required")
     
     users = list(db.users.find({}, {"_id": 0}))
@@ -47,7 +47,7 @@ def get_users(db: Any = Depends(get_db), current_user: str = Depends(get_current
 @router.post("", response_model=UserResponse)
 def create_user(user_in: UserCreate, db: Any = Depends(get_db), current_user: str = Depends(get_current_user)):
     user = db.users.find_one({"username": current_user})
-    if not user or user.get("role") != "superadmin":
+    if not user or (user.get("role") != "superadmin" and user.get("role") != "Super_Administrator"):
         raise HTTPException(status_code=403, detail="Superadmin access required")
         
     if db.users.find_one({"username": user_in.username}):
@@ -117,7 +117,7 @@ def upload_avatar_me(file: UploadFile = File(...), db: Any = Depends(get_db), cu
 @router.put("/{user_id}", response_model=UserResponse)
 def update_user(user_id: str, user_in: UserUpdate, db: Any = Depends(get_db), current_user: str = Depends(get_current_user)):
     user = db.users.find_one({"username": current_user})
-    if not user or user.get("role") != "superadmin":
+    if not user or (user.get("role") != "superadmin" and user.get("role") != "Super_Administrator"):
         raise HTTPException(status_code=403, detail="Superadmin access required")
         
     target_user = db.users.find_one({"id": user_id})
@@ -142,7 +142,7 @@ def update_user(user_id: str, user_in: UserUpdate, db: Any = Depends(get_db), cu
 @router.delete("/{user_id}")
 def delete_user(user_id: str, db: Any = Depends(get_db), current_user: str = Depends(get_current_user)):
     user = db.users.find_one({"username": current_user})
-    if not user or user.get("role") != "superadmin":
+    if not user or (user.get("role") != "superadmin" and user.get("role") != "Super_Administrator"):
         raise HTTPException(status_code=403, detail="Superadmin access required")
         
     target_user = db.users.find_one({"id": user_id})
