@@ -21,6 +21,7 @@ services:
       - acs-network
     depends_on:
       - mongodb
+      - redis
 
     deploy:
       resources:
@@ -82,6 +83,15 @@ services:
       - acs-network
     volumes:
       - acs_mongodb_data:/data/db
+
+  redis:
+    image: redis:alpine
+    container_name: acs-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - acs-network
 
 networks:
   acs-network:
