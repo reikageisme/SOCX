@@ -96,22 +96,22 @@ def upload_avatar_me(file: UploadFile = File(...), db: Session = Depends(get_db)
     user = db.query(User).filter(User.username == current_user).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
     file_ext = os.path.splitext(file.filename)[1]
+    content_type = file.content_type
     if file_ext.lower() not in ['.jpg', '.jpeg', '.png', '.gif']:
         raise HTTPException(status_code=400, detail="Invalid file type. Only JPG, PNG, GIF are allowed.")
         
-    filename = f"{user.id}{file_ext}"
-    os.makedirs("uploads/avatars", exist_ok=True)
-    filepath = f"uploads/avatars/{filename}"
+    # Read file content
+    file_data = file.file.read()
     
-    with open(filepath, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    # Store in GridFS
+    from app.core.mongodb import mongodb_storage
+    if not mongodb_storage.fs:
+        raise HTTPException(status_code=500, detail="MongoDB not initialized")
         
-    # Assuming backend runs on port 8000 and the frontend accesses it via localhost:8000 or the reverse proxy
-    # We store the relative path and let the frontend prefix it, or store the absolute path.
-    # It's better to store relative path or standard URL path so it works everywhere.
-    avatar_url = f"/api/v1/uploads/avatars/{filename}"
+    file_id = mongodb_storage.fs.put(file_data, filename=f"{user.id}{file_ext}", content_type=content_type)
+    
+    avatar_url = f"/api/v1/files/{str(file_id)}"
     user.avatar_url = avatar_url
     db.commit()
     db.refresh(user)

@@ -2,6 +2,7 @@ from fastapi import FastAPI, Depends, WebSocket, WebSocketDisconnect, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import os
+import gridfs
 from app.api.endpoints import get_current_user
 from app.config import settings
 from app.api.endpoints import router as api_router
@@ -354,6 +355,10 @@ async def startup_event():
     pipeline.start()
     await threat_intel_service.initialize()
     
+    # Initialize MongoDB (GridFS)
+    from app.core.mongodb import mongodb_storage
+    mongodb_storage.initialize()
+    
     # Initialize ClickHouse (non-blocking — degrades gracefully if unavailable)
     await clickhouse_storage.initialize(host="clickhouse", port=8123)
 
@@ -362,6 +367,32 @@ async def shutdown_event():
     pipeline.stop()
     geoip_service.close()
     clickhouse_storage.close()
+    
+    from app.core.mongodb import mongodb_storage
+    mongodb_storage.close()
+
+from fastapi.responses import StreamingResponse
+from bson.errors import InvalidId
+from bson.objectid import ObjectId
+
+@app.get("/api/v1/files/{file_id}")
+def get_file_from_gridfs(file_id: str):
+    from app.core.mongodb import mongodb_storage
+    if not mongodb_storage.fs:
+        raise HTTPException(status_code=500, detail="MongoDB not initialized")
+        
+    try:
+        file_obj = mongodb_storage.fs.get(ObjectId(file_id))
+    except (InvalidId, gridfs.errors.NoFile):
+        raise HTTPException(status_code=404, detail="File not found")
+        
+    def iterfile():
+        yield from file_obj
+        
+    return StreamingResponse(
+        iterfile(),
+        media_type=file_obj.content_type or "application/octet-stream"
+    )
 
 if __name__ == "__main__":
     import uvicorn
