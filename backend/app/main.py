@@ -201,13 +201,10 @@ def dry_run_rule(req: ValidateRequest, current_user: str = Depends(get_current_u
 
 @app.get("/api/v1/logs")
 def get_logs(current_user: str = Depends(get_current_user)):
-    from app.core.db import SessionLocal
-    from app.models.incident import AuditLog
-    db = SessionLocal()
-    logs = db.query(AuditLog).order_by(AuditLog.timestamp.desc()).limit(100).all()
-    res = [{"id": l.id, "actor": l.actor, "action": l.action, "target": l.target, "details": l.details, "timestamp": l.timestamp} for l in logs]
-    db.close()
-    return {"logs": res}
+    from app.core.db import get_db
+    db = get_db()
+    logs = list(db.audit_logs.find({}, {"_id": 0}).sort("timestamp", -1).limit(100))
+    return {"logs": logs}
 
 @app.get("/api/v1/settings")
 def get_settings(current_user: str = Depends(get_current_user)):
@@ -250,24 +247,14 @@ async def summarize_incident(req: IncidentSummaryRequest, current_user: str = De
 # Setup API cho SOAR-lite
 @app.get("/api/v1/incidents")
 def get_incidents(current_user: str = Depends(get_current_user)):
-    from app.core.db import SessionLocal
-    db = SessionLocal()
-    incidents = db.query(Incident).order_by(Incident.created_at.desc()).limit(50).all()
+    from app.core.db import get_db
+    db = get_db()
+    incidents = list(db.incidents.find({}, {"_id": 0}).sort("created_at", -1).limit(50))
     res = []
     for i in incidents:
-        actions = db.query(ActionRequest).filter(ActionRequest.incident_id == i.id).all()
-        res.append({
-            "id": i.id,
-            "title": i.title,
-            "severity": i.severity,
-            "status": i.status,
-            "assignee": i.assignee,
-            "timeline_notes": i.timeline_notes,
-            "client_id": i.client_id,
-            "source_ip": i.source_ip,
-            "actions": [{"id": a.id, "type": a.action_type, "status": a.status, "target": a.target} for a in actions]
-        })
-    db.close()
+        actions = list(db.action_requests.find({"incident_id": i.get("id")}, {"_id": 0}))
+        i["actions"] = actions
+        res.append(i)
     return {"incidents": res}
 
 @app.get("/api/v1/intel/lookup")
@@ -282,19 +269,20 @@ def lookup_ioc(q: str, current_user: str = Depends(get_current_user)):
 
 @app.get("/api/v1/reports/executive")
 def executive_report(current_user: str = Depends(get_current_user)):
-    from app.core.db import SessionLocal
-    from sqlalchemy import func
-    db = SessionLocal()
+    from app.core.db import get_db
+    db = get_db()
     
     # Calculate incidents by severity
-    severity_counts = db.query(Incident.severity, func.count(Incident.id)).group_by(Incident.severity).all()
-    severity_breakdown = {sev: count for sev, count in severity_counts}
+    pipeline = [
+        {"$group": {"_id": "$severity", "count": {"$sum": 1}}}
+    ]
+    severity_counts = list(db.incidents.aggregate(pipeline))
+    severity_breakdown = {item["_id"]: item["count"] for item in severity_counts if item["_id"]}
     
     # Dummy MTTR (Mean Time To Resolve) calculation (e.g. 2.5 hours)
     mttr_hours = 2.5
     
-    total_incidents = db.query(Incident).count()
-    db.close()
+    total_incidents = db.incidents.count_documents({})
     
     return {
         "total_incidents": total_incidents,
@@ -347,17 +335,17 @@ async def startup_event():
     if settings.SECRET_KEY == "a-very-secret-key-change-this-in-production" or settings.PROXMOX_TOKEN_SECRET == "your-token-secret-here":
         logging.getLogger("uvicorn.error").critical("CRITICAL SECURITY WARNING: Default SECRET_KEY or PROXMOX_TOKEN_SECRET detected in production! Please override in .env.")
         
-    # Initialize DB
+    # Initialize MongoDB (GridFS and DB)
+    from app.core.mongodb import mongodb_storage
+    mongodb_storage.initialize()
+    
+    # Initialize DB (Seed tahnadmin)
     from app.core.init_db import init_db
     init_db()
     
     await geoip_service.initialize()
     pipeline.start()
     await threat_intel_service.initialize()
-    
-    # Initialize MongoDB (GridFS)
-    from app.core.mongodb import mongodb_storage
-    mongodb_storage.initialize()
     
     # Initialize ClickHouse (non-blocking — degrades gracefully if unavailable)
     await clickhouse_storage.initialize(host="clickhouse", port=8123)

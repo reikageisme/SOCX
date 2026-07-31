@@ -124,17 +124,14 @@ async def receive_network_event(event: NetworkEvent, current_user: str = Depends
 
 @router.get("/system/dashboard-metrics")
 def get_dashboard_metrics(current_user: str = Depends(get_current_user)):
-    from app.core.db import SessionLocal
-    from app.models.incident import Incident
+    from app.core.db import get_db
     
     # Get active incidents
-    db = SessionLocal()
     try:
-        active_incidents = db.query(Incident).filter(Incident.status.in_(["open", "investigating"])).count()
+        db = get_db()
+        active_incidents = db.incidents.count_documents({"status": {"$in": ["open", "investigating"]}})
     except:
         active_incidents = 0
-    finally:
-        db.close()
         
     # Get proxmox cluster info for CPU/Storage
     try:

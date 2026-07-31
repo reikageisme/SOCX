@@ -1,18 +1,10 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
+from app.core.mongodb import mongodb_storage
+import logging
 
-SQLALCHEMY_DATABASE_URL = "sqlite:///./data/aegis.db"
-
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
-)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-Base = declarative_base()
+logger = logging.getLogger("db")
 
 def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+    if mongodb_storage.db is None:
+        logger.error("MongoDB is not initialized")
+        raise RuntimeError("MongoDB is not initialized")
+    return mongodb_storage.db

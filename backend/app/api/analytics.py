@@ -1,32 +1,39 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from typing import Any
 from datetime import datetime, timedelta
 import random
 import whois
 import logging
 
 from app.core.db import get_db
-from app.models.incident import Incident
+
 from app.api.endpoints import get_current_user
 
 router = APIRouter()
 
 @router.get("/sla")
-def get_sla_metrics(db: Session = Depends(get_db)):
+def get_sla_metrics(db: Any = Depends(get_db)):
     """
     Returns SLA metrics: MTTD (Mean Time To Detect) and MTTR (Mean Time To Respond)
     Calculated based on Incident data and ClickHouse logs.
     """
     
     # 1. Calculate MTTR from resolved incidents
-    resolved_incidents = db.query(Incident).filter(Incident.status == "Resolved").all()
+    resolved_incidents = list(db.incidents.find({"status": "Resolved"}))
     
     total_response_time = 0
     valid_mttr_count = 0
     
     for inc in resolved_incidents:
-        if inc.updated_at and inc.created_at:
-            duration = (inc.updated_at - inc.created_at).total_seconds()
+        updated_at = inc.get("updated_at")
+        created_at = inc.get("created_at")
+        if updated_at and created_at:
+            if isinstance(updated_at, str):
+                updated_at = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
+            if isinstance(created_at, str):
+                created_at = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+                
+            duration = (updated_at - created_at).total_seconds()
             if duration > 0:
                 total_response_time += duration
                 valid_mttr_count += 1
@@ -43,7 +50,7 @@ def get_sla_metrics(db: Session = Depends(get_db)):
     # MTTD is the time between actual event occurrence and detection (Incident creation).
     # Since we are real-time, MTTD is usually very fast (a few minutes or seconds).
     # We'll use a realistic calculated mock combined with actual DB size logic for now.
-    total_incidents = db.query(Incident).count()
+    total_incidents = db.incidents.count_documents({})
     if total_incidents == 0:
         mttd_minutes = 2.5
     else:

@@ -1,35 +1,29 @@
 import logging
-from app.models.incident import Incident, ActionRequest
 from app.core.response.playbook_manager import playbook_manager
 from app.core.response.audit_logger import audit_logger
-from app.core.db import SessionLocal
-from sqlalchemy.orm import Session
+from app.core.mongodb import mongodb_storage
+from typing import Dict, Any
 import uuid
 import json
 
 logger = logging.getLogger(__name__)
 
 class PlaybookExecutor:
-    def execute_for_incident(self, incident: Incident, db: Session = None):
+    def execute_for_incident(self, incident: Dict[str, Any], db: Any = None):
         playbooks = playbook_manager.get_playbooks()
-        close_db_here = False
         if not db:
-            db = SessionLocal()
-            close_db_here = True
+            db = mongodb_storage.db
         
         for pb in playbooks:
             trigger = pb.get("trigger", {})
             
             # Simple match
-            if trigger.get("incident_name") == incident.title:
+            if trigger.get("incident_name") == incident.get("title"):
                 self._trigger_playbook(pb, incident, db)
 
-        if close_db_here:
-            db.close()
-
-    def _trigger_playbook(self, playbook: dict, incident: Incident, db: Session):
-        logger.info(f"Triggering playbook '{playbook['name']}' for incident {incident.id}")
-        audit_logger.log("system", "playbook_triggered", playbook['name'], {"incident_id": incident.id})
+    def _trigger_playbook(self, playbook: dict, incident: Dict[str, Any], db: Any):
+        logger.info(f"Triggering playbook '{playbook['name']}' for incident {incident.get('id')}")
+        audit_logger.log("system", "playbook_triggered", playbook['name'], {"incident_id": incident.get('id')})
         
         try:
             all_auto = True
@@ -39,21 +33,21 @@ class PlaybookExecutor:
                 # Jinja-like template substitution (simplified)
                 target = action.get("target", "")
                 if target == "{{ incident.source_ip }}":
-                    target = incident.source_ip
+                    target = incident.get("source_ip")
                 elif target == "{{ incident.dest_ip }}":
-                    target = incident.dest_ip or "unknown"
+                    target = incident.get("dest_ip") or "unknown"
                 
-                req = ActionRequest(
-                    id=str(uuid.uuid4()),
-                    incident_id=incident.id,
-                    action_type=action.get("type", "unknown"),
-                    target=target,
-                    parameters=json.dumps(action),
-                    requires_approval=requires_approval,
-                    status="pending" if requires_approval else "executed",
-                    executed_by=None if requires_approval else "system"
-                )
-                db.add(req)
+                req = {
+                    "id": str(uuid.uuid4()),
+                    "incident_id": incident.get("id"),
+                    "action_type": action.get("type", "unknown"),
+                    "target": target,
+                    "parameters": json.dumps(action),
+                    "requires_approval": requires_approval,
+                    "status": "pending" if requires_approval else "executed",
+                    "executed_by": None if requires_approval else "system"
+                }
+                db.action_requests.insert_one(req)
                 
                 if not requires_approval:
                     self._auto_execute_action(req)
@@ -61,51 +55,38 @@ class PlaybookExecutor:
                     all_auto = False
                     
             if all_auto and len(playbook.get("actions", [])) > 0:
-                # OPTION A: Auto-resolve incident if all actions were auto-executed successfully
-                incident.status = "resolved"
-                incident.timeline_notes = (incident.timeline_notes or "") + f"\n[System] Auto-resolved by Playbook: {playbook['name']} at {__import__('datetime').datetime.utcnow().isoformat()}"
-                
-            db.commit()
+                incident["status"] = "resolved"
+                incident["timeline_notes"] = (incident.get("timeline_notes", "") or "") + f"\n[System] Auto-resolved by Playbook: {playbook['name']} at {__import__('datetime').datetime.utcnow().isoformat()}"
+                db.incidents.update_one({"id": incident.get("id")}, {"$set": {"status": "resolved", "timeline_notes": incident["timeline_notes"]}})
             
             # TODO: Send Alert to Telegram if severity is high
             
         except Exception as e:
             logger.error(f"Playbook execution failed: {e}")
-            db.rollback()
 
-    def _auto_execute_action(self, action_req: ActionRequest):
-        logger.warning(f"⚡ AUTO EXECUTING ACTION: {action_req.action_type} on {action_req.target}")
+    def _auto_execute_action(self, action_req: Dict[str, Any]):
+        logger.warning(f"⚡ AUTO EXECUTING ACTION: {action_req.get('action_type')} on {action_req.get('target')}")
         # In a real system, we would call the Proxmox API / iptables here
-        audit_logger.log("system", "action_auto_executed", action_req.action_type, {"target": action_req.target, "action_id": action_req.id})
+        audit_logger.log("system", "action_auto_executed", action_req.get("action_type"), {"target": action_req.get("target"), "action_id": action_req.get("id")})
 
     def approve_action(self, action_id: str, admin_user: str):
-        db = SessionLocal()
-        try:
-            req = db.query(ActionRequest).filter(ActionRequest.id == action_id).first()
-            if req and req.status == "pending":
-                req.status = "executed"
-                req.executed_by = admin_user
-                db.commit()
-                logger.warning(f"🛡️ ADMIN APPROVED ACTION: {req.action_type} on {req.target}")
-                audit_logger.log(admin_user, "action_approved", req.action_type, {"target": req.target, "action_id": req.id})
-                return True
-        finally:
-            db.close()
+        db = mongodb_storage.db
+        req = db.action_requests.find_one({"id": action_id})
+        if req and req.get("status") == "pending":
+            db.action_requests.update_one({"id": action_id}, {"$set": {"status": "executed", "executed_by": admin_user}})
+            logger.warning(f"🛡️ ADMIN APPROVED ACTION: {req.get('action_type')} on {req.get('target')}")
+            audit_logger.log(admin_user, "action_approved", req.get("action_type"), {"target": req.get("target"), "action_id": req.get("id")})
+            return True
         return False
 
     def reject_action(self, action_id: str, admin_user: str):
-        db = SessionLocal()
-        try:
-            req = db.query(ActionRequest).filter(ActionRequest.id == action_id).first()
-            if req and req.status == "pending":
-                req.status = "rejected"
-                req.executed_by = admin_user
-                db.commit()
-                logger.warning(f"❌ ADMIN REJECTED ACTION: {req.action_type} on {req.target}")
-                audit_logger.log(admin_user, "action_rejected", req.action_type, {"target": req.target, "action_id": req.id})
-                return True
-        finally:
-            db.close()
+        db = mongodb_storage.db
+        req = db.action_requests.find_one({"id": action_id})
+        if req and req.get("status") == "pending":
+            db.action_requests.update_one({"id": action_id}, {"$set": {"status": "rejected", "executed_by": admin_user}})
+            logger.warning(f"❌ ADMIN REJECTED ACTION: {req.get('action_type')} on {req.get('target')}")
+            audit_logger.log(admin_user, "action_rejected", req.get("action_type"), {"target": req.get("target"), "action_id": req.get("id")})
+            return True
         return False
 
 playbook_executor = PlaybookExecutor()

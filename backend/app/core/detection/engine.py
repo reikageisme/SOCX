@@ -3,8 +3,7 @@ import time
 from typing import Dict, Any, List
 from datetime import datetime
 from app.core.detection.rule_manager import rule_manager
-from app.models.incident import Incident
-from app.core.db import SessionLocal
+from app.core.mongodb import mongodb_storage
 import json
 import uuid
 
@@ -83,7 +82,11 @@ class DetectionEngine:
 
     def _create_incident(self, source_ip: str, rule: Dict[str, Any], events: List[Dict[str, Any]]):
         logger.warning(f"🚨 INCIDENT TRIGGERED: {rule['name']} from {source_ip}")
-        db = SessionLocal()
+        db = mongodb_storage.db
+        if db is None:
+            logger.error("MongoDB not initialized in detection engine")
+            return
+            
         try:
             # Correlate Vulnerabilities
             severity = rule.get("severity", "medium")
@@ -91,33 +94,37 @@ class DetectionEngine:
             vuln_notes = []
             
             if daddr:
-                from app.models.asset import Asset
-                asset = db.query(Asset).filter(Asset.ip_address == daddr).first()
-                if asset and asset.cves and asset.cves != "[]":
+                asset = db.assets.find_one({"ip_address": daddr})
+                if asset and asset.get("cves") and asset.get("cves") != "[]":
                     try:
-                        cves = json.loads(asset.cves)
+                        cves = json.loads(asset.get("cves"))
                         if cves:
                             severity = "critical"
-                            vuln_notes = [f"Target asset ({asset.hostname}) has known vulnerabilities: {', '.join(cves)}"]
+                            vuln_notes = [f"Target asset ({asset.get('hostname')}) has known vulnerabilities: {', '.join(cves)}"]
                             logger.warning(f"Asset vulnerability match! Escalating incident to CRITICAL for {daddr}")
                     except Exception as e:
                         logger.error(f"Error parsing CVEs: {e}")
 
-            incident = Incident(
-                id=str(uuid.uuid4()),
-                title=rule["name"],
-                severity=severity,
-                source_ip=source_ip,
-                dest_ip=daddr,
-                event_count=len(events),
-                mitre_tactics=json.dumps([rule.get("mitre", {}).get("tactic", "")]),
-                mitre_techniques=json.dumps([rule.get("mitre", {}).get("technique", "")]),
-                related_events=json.dumps([e.get("timestamp") for e in events]),
-                timeline_notes=json.dumps(vuln_notes) if vuln_notes else "[]"
-            )
-            db.add(incident)
-            db.commit()
-            db.refresh(incident)
+            incident_id = str(uuid.uuid4())
+            now_str = datetime.utcnow().isoformat() + "Z"
+            incident = {
+                "id": incident_id,
+                "title": rule["name"],
+                "severity": severity,
+                "status": "open",
+                "assignee": None,
+                "source_ip": source_ip,
+                "dest_ip": daddr,
+                "event_count": len(events),
+                "mitre_tactics": json.dumps([rule.get("mitre", {}).get("tactic", "")]),
+                "mitre_techniques": json.dumps([rule.get("mitre", {}).get("technique", "")]),
+                "related_events": json.dumps([e.get("timestamp") for e in events]),
+                "timeline_notes": json.dumps(vuln_notes) if vuln_notes else "[]",
+                "client_id": None,
+                "created_at": now_str,
+                "updated_at": now_str
+            }
+            db.incidents.insert_one(incident)
             # Trigger Response Playbook
             from app.core.response.executor import playbook_executor
             playbook_executor.execute_for_incident(incident, db)
@@ -131,10 +138,10 @@ class DetectionEngine:
                 notif_msg = {
                     "type": "notification",
                     "data": {
-                        "id": incident.id,
-                        "title": f"New Incident: {incident.title}",
-                        "severity": incident.severity,
-                        "timestamp": incident.created_at.isoformat() + "Z" if hasattr(incident, 'created_at') and incident.created_at else __import__('datetime').datetime.utcnow().isoformat() + "Z"
+                        "id": incident_id,
+                        "title": f"New Incident: {incident['title']}",
+                        "severity": incident['severity'],
+                        "timestamp": incident['created_at']
                     }
                 }
                 
@@ -149,8 +156,5 @@ class DetectionEngine:
             
         except Exception as e:
             logger.error(f"Failed to create incident: {e}")
-            db.rollback()
-        finally:
-            db.close()
 
 detection_engine = DetectionEngine()
