@@ -18,6 +18,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - acs_internal
+    depends_on:
+      - mongodb
 
     deploy:
       resources:
@@ -68,9 +70,21 @@ services:
       timeout: 10s
       retries: 3
 
+  mongodb:
+    image: mongo:latest
+    container_name: acs-mongodb
+    restart: unless-stopped
+    expose:
+      - "27017"
+    networks:
+      - acs_internal
+    volumes:
+      - acs_mongodb_data:/data/db
+
 networks:
   acs_internal:
     driver: bridge
 
 volumes:
   acs_data:
+  acs_mongodb_data:
