@@ -102,19 +102,15 @@ from app.core.geoip import geoip_service
 from app.core.threat_intel import threat_intel_service
 from app.core.pipeline import pipeline
 from app.core.clickhouse import clickhouse_storage
-from app.core.db import engine, Base
-from app.models.incident import Incident, ActionRequest
 from app.core.response.executor import playbook_executor
 
 @app.get("/api/v1/health")
 def health_check():
     # Kiểm tra trạng thái DB
     try:
-        from app.core.db import SessionLocal
-        from sqlalchemy import text
-        db = SessionLocal()
-        db.execute(text("SELECT 1"))
-        db.close()
+        from app.core.db import get_db
+        db = get_db()
+        db.command("ping")
         db_status = "ok"
     except Exception as e:
         db_status = f"error: {str(e)}"
