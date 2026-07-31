@@ -26,7 +26,7 @@ def get_tailscale_status():
         pass
     return {"active": False, "peers": []}
 
-@router.get("/")
+@router.get("")
 def get_topology(current_user: str = Depends(get_current_user)):
     """
     Returns a layer-based network topology: wan, lan, overlay, hypervisor, vm
