@@ -46,6 +46,16 @@ def get_nodes(current_user: str = Depends(get_current_user)):
     nodes = proxmox_service.get_nodes()
     return {"status": "success", "data": nodes}
 
+@router.get("/proxmox/config")
+def get_proxmox_config(current_user: str = Depends(get_current_user)):
+    """
+    Get Proxmox host configuration for UI redirects
+    """
+    from app.config import settings
+    # Extract host without port or protocol if it has it
+    host = settings.PROXMOX_HOST.replace("https://", "").replace("http://", "").split(":")[0]
+    return {"status": "success", "host": host}
+
 @router.get("/proxmox/nodes/{node_name}/vms")
 def get_vms(node_name: str, current_user: str = Depends(get_current_user)):
     """

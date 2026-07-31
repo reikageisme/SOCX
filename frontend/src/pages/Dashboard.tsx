@@ -63,6 +63,25 @@ const ProxmoxNodeRow = ({ node, vms }: { node: any, vms: any[] }) => {
     setActionLoading(null);
   };
 
+  const handleConsole = async (vm: any) => {
+    try {
+      const response = await apiFetch('/api/v1/proxmox/config');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.status === 'success' && data.host) {
+          const type = vm.type === 'qemu' ? 'kvm' : 'lxc';
+          const proxmoxUrl = `https://${data.host}:8006/?console=${type}&novnc=1&vmid=${vm.vmid}&vmname=${vm.name}&node=${vm.node}`;
+          window.open(proxmoxUrl, '_blank');
+        } else {
+          alert("Proxmox host configuration missing in backend.");
+        }
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Failed to fetch Proxmox config. Please check backend.");
+    }
+  };
+
   return (
     <>
       <tr className="border-b border-gray-800/50 hover:bg-white/[0.02] transition-colors bg-soc-card">
@@ -118,7 +137,7 @@ const ProxmoxNodeRow = ({ node, vms }: { node: any, vms: any[] }) => {
                   <button onClick={() => handleAction(vm.vmid, 'snapshot')} disabled={!!actionLoading} className="p-1 hover:bg-indigo-500/20 rounded text-indigo-400 disabled:opacity-30 disabled:cursor-not-allowed" title="Snapshot">
                     <Camera size={14} className={actionLoading === `${vm.vmid}-snapshot` ? 'animate-pulse' : ''} />
                   </button>
-                  <button onClick={() => alert("Console proxy requires Proxmox PVE integration")} disabled={!!actionLoading} className="p-1 hover:bg-gray-500/20 rounded text-gray-400" title="View Console">
+                  <button onClick={() => handleConsole(vm)} disabled={!!actionLoading} className="p-1 hover:bg-gray-500/20 rounded text-gray-400" title="View Console">
                     <Monitor size={14} />
                   </button>
                 </div>
