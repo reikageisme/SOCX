@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useStore } from '../../store/useStore';
 import { ShieldCheck, Bell, LogOut, User, Settings, AlertTriangle, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../lib/api';
 
 export const Header = () => {
+  const [profile, setProfile] = useState<any>(null);
   const wsConnected = useStore((state) => state.wsConnected);
   const setToken = useStore((state) => state.setToken);
   const navigate = useNavigate();
@@ -17,6 +18,23 @@ export const Header = () => {
   const [showProfile, setShowProfile] = useState(false);
   const [iocQuery, setIocQuery] = useState('');
   const [lookupResult, setLookupResult] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const res = await apiFetch('/api/v1/users/me');
+        if (res.ok) {
+          const data = await res.json();
+          setProfile(data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch profile in header', err);
+      }
+    };
+    if (useStore.getState().token) {
+      fetchProfile();
+    }
+  }, []);
 
   const handleLookup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -141,20 +159,24 @@ export const Header = () => {
             onBlur={() => setTimeout(() => setShowProfile(false), 200)}
             className="flex items-center gap-3 hover:bg-gray-800/50 p-2 rounded-xl transition-colors text-left"
           >
-            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-soc-accent to-indigo-500 flex items-center justify-center text-white border border-gray-700 shadow-lg">
-              <User size={20} />
+            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-soc-accent to-indigo-500 flex items-center justify-center text-white border border-gray-700 shadow-lg overflow-hidden">
+              {profile?.avatar_url ? (
+                <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                <img src={`https://ui-avatars.com/api/?name=${profile?.username || 'User'}&background=random`} alt="Avatar" className="w-full h-full object-cover" />
+              )}
             </div>
             <div className="hidden sm:block">
-              <div className="text-sm font-medium text-white">tahnadmin</div>
-              <div className="text-xs text-soc-muted">Super Administrator</div>
+              <div className="text-sm font-medium text-white">{profile?.full_name || profile?.username || 'tahnadmin'}</div>
+              <div className="text-xs text-soc-muted capitalize">{profile?.role || 'Super Administrator'}</div>
             </div>
           </button>
 
           {showProfile && (
             <div className="absolute right-0 mt-3 w-56 bg-soc-card border border-gray-700 rounded-xl shadow-2xl py-2 z-50 animate-fade-in origin-top-right">
               <div className="px-4 py-3 border-b border-gray-800 sm:hidden">
-                <div className="text-sm font-medium text-white">tahnadmin</div>
-                <div className="text-xs text-soc-muted">Super Administrator</div>
+                <div className="text-sm font-medium text-white">{profile?.full_name || profile?.username || 'tahnadmin'}</div>
+                <div className="text-xs text-soc-muted capitalize">{profile?.role || 'Super Administrator'}</div>
               </div>
               <button 
                 onClick={() => navigate('/settings')}
