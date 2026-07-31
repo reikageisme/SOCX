@@ -160,7 +160,7 @@ export const Profile = () => {
             </div>
             <h2 className="text-xl font-bold text-white mb-1">{profile.full_name || profile.username}</h2>
             <div className="flex items-center gap-2 text-slate-400 mb-4">
-              <Shield size={14} className={profile.role === 'superadmin' ? 'text-rose-400' : 'text-teal-400'} />
+              <Shield size={14} className={(profile.role === 'superadmin' || profile.role === 'Super_Administrator') ? 'text-rose-400' : 'text-teal-400'} />
               <span className="capitalize text-sm">{profile.role}</span>
             </div>
             

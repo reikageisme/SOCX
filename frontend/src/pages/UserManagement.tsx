@@ -201,7 +201,7 @@ export const UserManagement = () => {
                     </td>
                     <td className="p-4">
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${
-                        user.role === 'superadmin' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' :
+                        (user.role === 'superadmin' || user.role === 'Super_Administrator') ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' :
                         user.role === 'admin' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
                         'bg-teal-500/10 text-teal-400 border-teal-500/20'
                       }`}>
@@ -299,7 +299,7 @@ export const UserManagement = () => {
                   <option value="analyst">Analyst</option>
                   <option value="auditor">Auditor</option>
                   <option value="admin">Admin</option>
-                  <option value="superadmin">Super Admin</option>
+                  <option value="Super_Administrator">Super Admin</option>
                 </select>
               </div>
 

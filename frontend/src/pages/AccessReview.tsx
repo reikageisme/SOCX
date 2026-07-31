@@ -15,7 +15,7 @@ export const AccessReview: React.FC = () => {
 
   // Initialize DB seed
   useEffect(() => {
-    if (userRole === 'superadmin') {
+    if (userRole === 'superadmin' || userRole === 'Super_Administrator') {
       apiFetch('/api/v1/access-review/seed', { method: 'POST', headers: { Authorization: `Bearer ${token}` } })
         .then(() => fetchAllData())
         .catch(() => fetchAllData());
