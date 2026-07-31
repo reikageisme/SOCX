@@ -86,7 +86,7 @@ async def poll_proxmox_and_broadcast():
                 redis_client.set("proxmox_last_payload", payload_json, ex=60)
         
         if should_broadcast:
-            await manager.broadcast(payload)
+            await manager.broadcast(payload_json)
 
         # Process alerts
         db = mongodb_storage.get_db()
