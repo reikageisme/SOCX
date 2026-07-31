@@ -58,6 +58,7 @@ export const Profile = () => {
       if (res.ok) {
         const data = await res.json();
         setProfile({...profile, avatar_url: data.avatar_url});
+        setEditForm(prev => ({...prev, avatar_url: data.avatar_url}));
         setSuccess('Avatar updated successfully');
       } else {
         const err = await res.json();

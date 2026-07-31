@@ -49,7 +49,7 @@ services:
 
   nginx:
     image: nginx:alpine
-    container_name: acs-proxy
+    container_name: acs-nginx
     restart: unless-stopped
     ports:
       - "80:80"
