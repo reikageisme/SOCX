@@ -14,7 +14,7 @@ services:
     env_file:
       - ./backend/.env
     networks:
-      - soc_network
+      - acs-network-dev
     volumes:
       - ./backend/data:/app/data
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -39,7 +39,7 @@ services:
     ports:
       - "5173:80"
     networks:
-      - soc_network
+      - acs-network-dev
     depends_on:
       backend:
         condition: service_healthy
@@ -51,7 +51,7 @@ services:
     expose:
       - "6379"
     networks:
-      - soc_network
+      - acs-network-dev
     volumes:
       - redis_data:/data
     healthcheck:
@@ -68,7 +68,7 @@ services:
       - "8123"
       - "9000"
     networks:
-      - soc_network
+      - acs-network-dev
     volumes:
       - clickhouse_data:/var/lib/clickhouse
       - clickhouse_logs:/var/log/clickhouse-server
@@ -85,7 +85,7 @@ services:
     expose:
       - "27017"
     networks:
-      - soc_network
+      - acs-network-dev
     volumes:
       - mongodb_data:/data/db
 
@@ -95,8 +95,7 @@ services:
 # docker run --privileged -v /sys/kernel/debug:/sys/kernel/debug:rw --net host aegis_agent
 
 networks:
-  soc_network:
-    name: acs-network-dev
+  acs-network-dev:
     driver: bridge
 
 volumes:
