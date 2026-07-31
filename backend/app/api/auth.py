@@ -29,7 +29,3 @@ def login_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Any
     
     access_token = create_access_token(subject=user.get("username"), role=user.get("role"))
     return {"access_token": access_token, "token_type": "bearer"}
-
-@router.get("/users/me")
-def read_users_me(current_user: str = Depends(get_current_user)):
-    return {"username": "tahnadmin"}
