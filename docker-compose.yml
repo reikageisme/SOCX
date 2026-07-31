@@ -82,8 +82,8 @@ services:
     image: mongo:latest
     container_name: acs-mongodb
     restart: always
-    expose:
-      - "27017"
+    ports:
+      - "27017:27017"
     networks:
       - acs-network-dev
     volumes:
