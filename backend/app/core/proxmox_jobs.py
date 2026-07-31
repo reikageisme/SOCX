@@ -9,7 +9,7 @@ from app.config import settings
 
 logger = logging.getLogger("proxmox_jobs")
 
-def poll_proxmox_and_broadcast():
+async def poll_proxmox_and_broadcast():
     try:
         import redis
         redis_client = redis.Redis(host='redis', port=6379, db=0, decode_responses=True, socket_connect_timeout=1, socket_timeout=1)
@@ -86,14 +86,7 @@ def poll_proxmox_and_broadcast():
                 redis_client.set("proxmox_last_payload", payload_json, ex=60)
         
         if should_broadcast:
-            import asyncio
-            # We are in a sync thread for apscheduler.
-            # Create a new event loop or use the existing one to run the broadcast
-            try:
-                loop = asyncio.get_running_loop()
-                loop.create_task(manager.broadcast(payload))
-            except RuntimeError:
-                asyncio.run(manager.broadcast(payload))
+            await manager.broadcast(payload)
 
         # Process alerts
         db = mongodb_storage.get_db()
