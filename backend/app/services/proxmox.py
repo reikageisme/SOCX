@@ -79,4 +79,17 @@ class ProxmoxService:
         except Exception as e:
             raise Exception(f"Failed to execute {action} on VM {vmid}: {str(e)}")
 
+    def get_rrddata(self, node_name: str, timeframe: str = "hour"):
+        if settings.MOCK_PROXMOX:
+            return []
+        if not self.proxmox:
+            self._connect()
+            if not self.proxmox:
+                return []
+        try:
+            return self.proxmox.nodes(node_name).rrddata.get(timeframe=timeframe)
+        except Exception as e:
+            print(f"Error fetching RRD for node {node_name}: {str(e)}")
+            return []
+
 proxmox_service = ProxmoxService()

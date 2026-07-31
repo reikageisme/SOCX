@@ -1,13 +1,39 @@
-import { useProxmoxNodes, useProxmoxVms, useDashboardMetrics } from '../hooks/useProxmox';
+import { useDashboardMetrics, useProxmoxRRD } from '../hooks/useProxmox';
 import { useStore } from '../store/useStore';
-import { Server, Cpu, HardDrive, ShieldAlert } from 'lucide-react';
+import { Server, Cpu, HardDrive, ShieldAlert, Monitor, Camera, ShieldBan } from 'lucide-react';
 import { useSlaMetrics } from '../hooks/useAnalytics';
-import { Clock, Timer, Play, Square, RefreshCw, Plus } from 'lucide-react';
+import { Clock, Timer, Plus } from 'lucide-react';
 import { apiFetch } from '../lib/api';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { LineChart, Line, YAxis, ResponsiveContainer } from 'recharts';
 
-const ProxmoxNodeRow = ({ node }: { node: any }) => {
-  const { data: vmsData, isLoading, refetch } = useProxmoxVms(node.node);
+const Sparkline = ({ nodeName, type }: { nodeName: string, type: 'cpu' | 'mem' }) => {
+  const { data } = useProxmoxRRD(nodeName);
+  if (!data || !data.data || data.data.length === 0) return null;
+  
+  // RRD returns cpu (0-1) and mem (bytes)
+  const chartData = data.data.map((d: any) => ({
+    time: d.time,
+    value: type === 'cpu' ? (d.cpu || 0) * 100 : (d.mem || 0) / 1024 / 1024 / 1024
+  }));
+
+  // Highlight red if avg of last 5 points is > 80% (cpu)
+  const isHigh = type === 'cpu' && chartData.slice(-5).filter((d: any) => d.value > 80).length >= 5;
+  const color = isHigh ? '#ef4444' : (type === 'cpu' ? '#10b981' : '#f59e0b');
+
+  return (
+    <div className="w-16 h-6 inline-block ml-2 align-middle opacity-80">
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={chartData}>
+          <YAxis domain={type === 'cpu' ? [0, 100] : ['auto', 'auto']} hide />
+          <Line type="monotone" dataKey="value" stroke={color} strokeWidth={1.5} dot={false} isAnimationActive={false} />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+};
+
+const ProxmoxNodeRow = ({ node, vms }: { node: any, vms: any[] }) => {
   const userRole = useStore((state) => state.userRole);
   const token = useStore((state) => state.token);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -15,7 +41,7 @@ const ProxmoxNodeRow = ({ node }: { node: any }) => {
   const handleAction = async (vmid: number, action: string) => {
     setActionLoading(`${vmid}-${action}`);
     try {
-      await apiFetch(`/api/v1/proxmox/nodes/${node.node}/vms/${vmid}/action`, {
+      const res = await apiFetch(`/api/v1/proxmox/nodes/${node.node}/vms/${vmid}/action`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -23,7 +49,14 @@ const ProxmoxNodeRow = ({ node }: { node: any }) => {
         },
         body: JSON.stringify({ action })
       });
-      setTimeout(() => refetch(), 2000); // refresh after 2 seconds
+      if (!res.ok) {
+        const error = await res.json();
+        alert(`Action failed: ${error.detail}`);
+      } else {
+        if (action === 'isolate' || action === 'snapshot') {
+          alert(`Incident created for ${action} approval.`);
+        }
+      }
     } catch (e) {
       console.error(e);
     }
@@ -42,17 +75,23 @@ const ProxmoxNodeRow = ({ node }: { node: any }) => {
             {node.status}
           </span>
         </td>
-        <td className="py-4 text-soc-muted">{(node.cpu * 100).toFixed(1)}%</td>
-        <td className="py-4 text-soc-muted">{(node.mem / 1024 / 1024 / 1024).toFixed(1)} GB</td>
+        <td className="py-4 text-soc-muted">
+          {(node.cpu * 100).toFixed(1)}%
+          <Sparkline nodeName={node.node} type="cpu" />
+        </td>
+        <td className="py-4 text-soc-muted">
+          {(node.mem / 1024 / 1024 / 1024).toFixed(1)} GB
+          <Sparkline nodeName={node.node} type="mem" />
+        </td>
         <td className="py-4"></td>
       </tr>
       
-      {isLoading ? (
+      {vms.length === 0 ? (
         <tr>
-          <td colSpan={5} className="py-2 pl-8 text-soc-muted text-xs italic">Loading VMs/LXCs...</td>
+          <td colSpan={5} className="py-2 pl-8 text-soc-muted text-xs italic">No VMs/LXCs found.</td>
         </tr>
       ) : (
-        [...(vmsData?.data?.qemu || []).map((v: any) => ({ ...v, type: 'qemu' })), ...(vmsData?.data?.lxc || []).map((v: any) => ({ ...v, type: 'lxc' }))].map((vm: any) => (
+        vms.map((vm: any) => (
           <tr key={`${node.node}-${vm.vmid}`} className="group border-b border-gray-800/20 bg-black/20 text-sm hover:bg-white/[0.01] transition-colors">
             <td className="py-2 pl-8 text-soc-muted font-mono flex items-center gap-2">
               <span className="text-gray-600">└─</span> 
@@ -71,16 +110,16 @@ const ProxmoxNodeRow = ({ node }: { node: any }) => {
             <td className="py-2 text-soc-muted">{vm.cpu ? (vm.cpu * 100).toFixed(1) : '0.0'}%</td>
             <td className="py-2 text-soc-muted">{vm.maxmem ? (vm.mem / 1024 / 1024 / 1024).toFixed(1) : '0.0'} GB</td>
             <td className="py-2">
-              {(userRole === 'admin' || userRole === 'sysadmin') && (
+              {(userRole === 'superadmin' || userRole === 'Super_Administrator') && (
                 <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => handleAction(vm.vmid, 'start')} disabled={!!actionLoading} className="p-1 hover:bg-soc-success/20 rounded text-soc-success" title="Start">
-                    <Play size={14} />
+                  <button onClick={() => handleAction(vm.vmid, 'isolate')} disabled={!!actionLoading || vm.status !== 'running'} className="p-1 hover:bg-soc-alert/20 rounded text-soc-alert disabled:opacity-30 disabled:cursor-not-allowed" title="Isolate">
+                    <ShieldBan size={14} className={actionLoading === `${vm.vmid}-isolate` ? 'animate-pulse' : ''} />
                   </button>
-                  <button onClick={() => handleAction(vm.vmid, 'stop')} disabled={!!actionLoading} className="p-1 hover:bg-soc-alert/20 rounded text-soc-alert" title="Stop">
-                    <Square size={14} />
+                  <button onClick={() => handleAction(vm.vmid, 'snapshot')} disabled={!!actionLoading} className="p-1 hover:bg-indigo-500/20 rounded text-indigo-400 disabled:opacity-30 disabled:cursor-not-allowed" title="Snapshot">
+                    <Camera size={14} className={actionLoading === `${vm.vmid}-snapshot` ? 'animate-pulse' : ''} />
                   </button>
-                  <button onClick={() => handleAction(vm.vmid, 'reboot')} disabled={!!actionLoading} className="p-1 hover:bg-soc-warning/20 rounded text-soc-warning" title="Reboot">
-                    <RefreshCw size={14} className={actionLoading === `${vm.vmid}-reboot` ? 'animate-spin' : ''} />
+                  <button onClick={() => alert("Console proxy requires Proxmox PVE integration")} disabled={!!actionLoading} className="p-1 hover:bg-gray-500/20 rounded text-gray-400" title="View Console">
+                    <Monitor size={14} />
                   </button>
                 </div>
               )}
@@ -93,10 +132,37 @@ const ProxmoxNodeRow = ({ node }: { node: any }) => {
 };
 
 export const Dashboard = () => {
-  const { data: proxmoxData, isLoading, isError } = useProxmoxNodes();
+  const [wsData, setWsData] = useState<{nodes: any[], vms: any[]} | null>(null);
   const { data: metricsData } = useDashboardMetrics();
   const { data: slaData } = useSlaMetrics();
   const userRole = useStore((state) => state.userRole);
+
+  useEffect(() => {
+    // Initial fetch for first render
+    apiFetch('/api/v1/proxmox/nodes').then(res => res.json()).then(data => {
+      if (data.status === 'success') {
+        setWsData(prev => prev ? prev : { nodes: data.data, vms: [] });
+      }
+    }).catch(console.error);
+
+    // WebSocket subscription
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/api/v1/ws/infrastructure`;
+    const ws = new WebSocket(wsUrl);
+    
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.nodes) {
+          setWsData(data);
+        }
+      } catch (e) {
+        console.error("Proxmox WS parsing error", e);
+      }
+    };
+    
+    return () => ws.close();
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -110,8 +176,8 @@ export const Dashboard = () => {
               <p className="text-indigo-300 text-sm font-medium mb-1">Mean Time To Detect (MTTD)</p>
               <div className="flex items-end gap-3 mt-2">
                 <h3 className="text-4xl font-bold text-white tracking-tight">
-                  {slaData?.mttd?.value !== undefined ? slaData.mttd.value : '-'}
-                  <span className="text-lg font-normal text-indigo-200 ml-1.5">{slaData?.mttd?.unit || 'min'}</span>
+                  {slaData?.mttd?.value !== undefined && slaData.mttd.value !== null ? slaData.mttd.value : 'N/A'}
+                  {slaData?.mttd?.value !== undefined && slaData.mttd.value !== null && <span className="text-lg font-normal text-indigo-200 ml-1.5">{slaData?.mttd?.unit || 'min'}</span>}
                 </h3>
                 {slaData?.mttd?.trend && (
                   <span className={`text-xs font-semibold px-2 py-1 rounded-md mb-1.5 ${
@@ -121,7 +187,7 @@ export const Dashboard = () => {
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-400 mt-3">Average time to detect a potential threat</p>
+              <p className="text-xs text-slate-400 mt-3">{slaData?.mttd?.value === null ? "Not enough data" : "Average time to detect a potential threat"}</p>
             </div>
             <div className="p-3 bg-indigo-500/20 rounded-xl shadow-inner border border-indigo-400/20">
               <Clock className="w-7 h-7 text-indigo-400" />
@@ -137,8 +203,8 @@ export const Dashboard = () => {
               <p className="text-emerald-300 text-sm font-medium mb-1">Mean Time To Respond (MTTR)</p>
               <div className="flex items-end gap-3 mt-2">
                 <h3 className="text-4xl font-bold text-white tracking-tight">
-                  {slaData?.mttr?.value !== undefined ? slaData.mttr.value : '-'}
-                  <span className="text-lg font-normal text-emerald-200 ml-1.5">{slaData?.mttr?.unit || 'min'}</span>
+                  {slaData?.mttr?.value !== undefined && slaData.mttr.value !== null ? slaData.mttr.value : 'N/A'}
+                  {slaData?.mttr?.value !== undefined && slaData.mttr.value !== null && <span className="text-lg font-normal text-emerald-200 ml-1.5">{slaData?.mttr?.unit || 'min'}</span>}
                 </h3>
                 {slaData?.mttr?.trend && (
                   <span className={`text-xs font-semibold px-2 py-1 rounded-md mb-1.5 ${
@@ -148,7 +214,9 @@ export const Dashboard = () => {
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-400 mt-3">Based on {slaData?.resolved_count || 0} resolved incidents</p>
+              <p className="text-xs text-slate-400 mt-3">
+                {slaData?.mttr?.value === null ? "Not enough data" : `Based on ${slaData?.resolved_count || 0} resolved incidents`}
+              </p>
             </div>
             <div className="p-3 bg-emerald-500/20 rounded-xl shadow-inner border border-emerald-400/20">
               <Timer className="w-7 h-7 text-emerald-400" />
@@ -163,7 +231,7 @@ export const Dashboard = () => {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-soc-muted text-sm font-medium mb-1">Hypervisor Nodes</p>
-              <h3 className="text-3xl font-bold text-white">{isLoading ? '-' : (proxmoxData?.data?.length || 0)}</h3>
+              <h3 className="text-3xl font-bold text-white">{!wsData ? '-' : (wsData?.nodes?.length || 0)}</h3>
             </div>
             <div className="p-3 bg-soc-accent/10 rounded-lg">
               <Server className="w-6 h-6 text-soc-accent" />
@@ -226,10 +294,8 @@ export const Dashboard = () => {
             )}
           </div>
           <div className="p-6 flex-1 overflow-auto">
-            {isLoading ? (
-              <div className="flex items-center justify-center h-full text-soc-muted">Loading infrastructure data...</div>
-            ) : isError ? (
-              <div className="flex items-center justify-center h-full text-soc-alert">Failed to fetch Proxmox data</div>
+            {!wsData ? (
+              <div className="flex items-center justify-center h-full text-soc-muted">Connecting to infrastructure stream...</div>
             ) : (
               <table className="w-full text-left text-sm">
                 <thead>
@@ -242,10 +308,10 @@ export const Dashboard = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {proxmoxData?.data?.map((node: any) => (
-                    <ProxmoxNodeRow key={node.node} node={node} />
+                  {wsData?.nodes?.map((node: any) => (
+                    <ProxmoxNodeRow key={node.node} node={node} vms={(wsData.vms || []).filter((vm: any) => vm.node === node.node)} />
                   ))}
-                  {(!proxmoxData?.data || proxmoxData.data.length === 0) && (
+                  {(!wsData?.nodes || wsData.nodes.length === 0) && (
                     <tr>
                       <td colSpan={5} className="py-8 text-center text-soc-muted italic">
                         No nodes found or API connection failed.

@@ -16,6 +16,8 @@ from app.api.forensics import router as forensics_router
 from app.api.users import router as users_router
 from app.api.intel import router as intel_router
 from app.api.access_review import router as access_review_router
+from app.api.ws_proxmox import router as ws_proxmox_router
+from app.api.topology import router as topology_router
 from app.core.websockets import manager
 from app.core.security import verify_token
 import json
@@ -55,7 +57,8 @@ app.include_router(forensics_router, prefix=f"{settings.API_V1_STR}/forensics", 
 app.include_router(users_router, prefix=f"{settings.API_V1_STR}/users", tags=["users"])
 app.include_router(intel_router, prefix=f"{settings.API_V1_STR}/intel", tags=["intel"])
 app.include_router(access_review_router, prefix=f"{settings.API_V1_STR}/access-review", tags=["access_review"])
-
+app.include_router(ws_proxmox_router, prefix=f"{settings.API_V1_STR}/ws", tags=["ws"])
+app.include_router(topology_router, prefix=f"{settings.API_V1_STR}/topology", tags=["topology"])
 @app.websocket("/ws/threat-map")
 async def websocket_endpoint(websocket: WebSocket, token: str = Query(default=None)):
     # ── Step 1: Verify token BEFORE accepting the connection ──
@@ -389,7 +392,10 @@ async def startup_event():
     
     # Register scheduled tasks
     from app.core.access_review_jobs import check_access_reviews
+    from app.core.proxmox_jobs import poll_proxmox_and_broadcast
+    
     threat_intel_service.scheduler.add_job(check_access_reviews, 'interval', hours=24)
+    threat_intel_service.scheduler.add_job(poll_proxmox_and_broadcast, 'interval', seconds=5)
     
     # Initialize ClickHouse (non-blocking — degrades gracefully if unavailable)
     await clickhouse_storage.initialize(host="clickhouse", port=8123)

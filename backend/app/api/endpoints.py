@@ -56,12 +56,45 @@ def get_vms(node_name: str, current_user: str = Depends(get_current_user)):
     return {"status": "success", "data": {"qemu": vms, "lxc": lxcs}}
 
 class ProxmoxAction(BaseModel):
-    action: str # start, stop, reboot
+    action: str # start, stop, reboot, isolate, snapshot
+
+@router.get("/proxmox/nodes/{node_name}/rrddata")
+def get_node_rrddata(node_name: str, timeframe: str = "hour", current_user: str = Depends(get_current_user)):
+    """
+    Get historic RRD data for a node
+    """
+    data = proxmox_service.get_rrddata(node_name, timeframe)
+    return {"status": "success", "data": data}
 
 @router.post("/proxmox/nodes/{node_name}/vms/{vmid}/action")
 def execute_vm_action(node_name: str, vmid: int, action_req: ProxmoxAction, user: dict = Depends(get_current_user_with_role)):
     if user["role"] == "auditor":
         raise HTTPException(status_code=403, detail="Auditors cannot perform actions")
+        
+    action = action_req.action
+    
+    if action in ["isolate", "snapshot"]:
+        if str(vmid) == "100":
+            raise HTTPException(status_code=400, detail="Cannot perform this action on CT100 (ACS Host)")
+            
+        from app.core.mongodb import mongodb_storage
+        import uuid
+        from datetime import datetime
+        
+        db = mongodb_storage.get_db()
+        now = datetime.utcnow()
+        inc = {
+            "id": str(uuid.uuid4()),
+            "title": f"Action Requested: {action.title()} VM {vmid} on {node_name}",
+            "severity": "medium",
+            "status": "pending approval",
+            "created_at": now.isoformat() + "Z",
+            "updated_at": now.isoformat() + "Z",
+            "description": f"User {user['username']} requested to {action} VM {vmid}.",
+            "tags": ["response", "manual-action"]
+        }
+        db.incidents.insert_one(inc)
+        return {"status": "success", "message": f"Incident created for {action} approval."}
         
     try:
         res = proxmox_service.execute_vm_action(node_name, vmid, action_req.action)

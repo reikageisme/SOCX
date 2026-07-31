@@ -34,7 +34,25 @@ export const useProxmoxVms = (nodeName: string) => {
     },
       enabled: !!nodeName && !!token,
     });
-  };
+};
+
+export const useProxmoxRRD = (nodeName: string) => {
+  const token = useStore((state) => state.token);
+
+  return useQuery({
+    queryKey: ['proxmoxRrd', nodeName],
+    queryFn: async () => {
+      const response = await apiFetch(`${API_BASE_URL}/proxmox/nodes/${nodeName}/rrddata`);
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      return response.json();
+    },
+    enabled: !!nodeName && !!token,
+    staleTime: 60000, // 1 minute
+    refetchInterval: 60000,
+  });
+};
   
   export const useDashboardMetrics = () => {
     const token = useStore((state) => state.token);

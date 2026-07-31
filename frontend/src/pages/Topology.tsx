@@ -14,8 +14,26 @@ import {
   type Edge
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Network, Server, Globe, Shield, Activity, X, Play, Square, HardDrive, Cpu, AlertTriangle } from 'lucide-react';
-import { useProxmoxNodes, useProxmoxVms } from '../hooks/useProxmox';
+import { Network, Server, Globe, Shield, Activity, X, Play, Square, HardDrive, Cpu, AlertTriangle, MonitorSmartphone } from 'lucide-react';
+import { useProxmoxVms } from '../hooks/useProxmox';
+import { useQuery } from '@tanstack/react-query';
+import { apiFetch } from '../lib/api';
+import { useStore } from '../store/useStore';
+
+const useTopologyData = () => {
+  const token = useStore((state) => state.token);
+  return useQuery({
+    queryKey: ['topology'],
+    queryFn: async () => {
+      const response = await apiFetch(`/api/v1/topology`);
+      if (!response.ok) throw new Error('Network response was not ok');
+      return response.json();
+    },
+    enabled: !!token,
+    refetchInterval: 10000,
+  });
+};
+
 
 // Custom Node Component
 const CustomNode = ({ data, isConnectable }: NodeProps) => {
@@ -30,14 +48,17 @@ const CustomNode = ({ data, isConnectable }: NodeProps) => {
       
       <div className="flex items-center gap-3">
         <div className={`p-2 rounded-lg ${
-          data.type === 'internet' ? 'bg-blue-500/20 text-blue-400' :
-          data.type === 'firewall' ? 'bg-amber-500/20 text-amber-400' :
+          data.layer === 'wan' ? 'bg-blue-500/20 text-blue-400' :
+          data.layer === 'lan' ? 'bg-amber-500/20 text-amber-400' :
+          data.layer === 'overlay' ? 'bg-purple-500/20 text-purple-400' :
           isOffline ? 'bg-rose-500/20 text-rose-400' :
           'bg-teal-500/20 text-teal-400'
         }`}>
-          {data.type === 'internet' && <Globe size={20} />}
-          {data.type === 'firewall' && <Shield size={20} />}
-          {data.type === 'proxmox' && <Server size={20} />}
+          {data.layer === 'wan' && <Globe size={20} />}
+          {data.layer === 'lan' && <Shield size={20} />}
+          {data.layer === 'hypervisor' && <Server size={20} />}
+          {data.layer === 'vm' && <Server size={20} />}
+          {data.layer === 'overlay' && (data.type === 'overlay_router' ? <Network size={20} /> : <MonitorSmartphone size={20} />)}
         </div>
         <div>
           <div className="font-bold text-slate-200 text-sm">{data.label as string}</div>
@@ -121,79 +142,65 @@ const NodeDetailsModal = ({ nodeName, onClose }: { nodeName: string, onClose: ()
 export const Topology = () => {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
-  const { data: proxmoxData } = useProxmoxNodes();
+  const { data: topologyData } = useTopologyData();
   
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [isDosSimulated, setIsDosSimulated] = useState(false);
 
   useEffect(() => {
-    const baseNodes = [
-      { 
-        id: 'internet', 
-        position: { x: 400, y: 50 }, 
-        data: { label: 'Internet / WAN', type: 'internet' }, 
-        type: 'custom' 
-      },
-      { 
-        id: 'firewall', 
-        position: { x: 400, y: 150 }, 
-        data: { label: 'ACS Firewall (pfSense)', type: 'firewall' }, 
-        type: 'custom' 
-      }
-    ];
+    if (!topologyData?.data) return;
 
-    const baseEdges = [
-      { 
-        id: 'e-internet-firewall', 
-        source: 'internet', 
-        target: 'firewall', 
-        animated: true, 
-        style: { stroke: isDosSimulated ? '#ef4444' : '#14b8a6', strokeWidth: isDosSimulated ? 4 : 2 },
-        label: isDosSimulated ? 'L7 DDoS Flood' : 'Normal Link',
-        labelStyle: { fill: isDosSimulated ? '#ef4444' : '#14b8a6', fontWeight: 'bold' }
-      }
-    ];
+    const layerConfig: Record<string, { y: number, xStart: number, spacing: number }> = {
+      wan: { y: 50, xStart: 400, spacing: 200 },
+      lan: { y: 150, xStart: 400, spacing: 200 },
+      overlay: { y: 150, xStart: 700, spacing: 200 },
+      hypervisor: { y: 300, xStart: 200, spacing: 300 },
+      vm: { y: 450, xStart: 100, spacing: 200 }
+    };
 
-    if (proxmoxData?.data && Array.isArray(proxmoxData.data)) {
-      const pveNodes = proxmoxData.data.map((node: any, idx: number) => {
-        const total = proxmoxData.data.length;
-        const width = 600;
-        const startX = 400 - (width / 2);
-        const step = total > 1 ? width / (total - 1) : 0;
-        const x = total === 1 ? 400 : startX + (idx * step);
+    const newNodes: Node[] = [];
+    const newEdges: Edge[] = [];
 
-        return {
-          id: `pve-${node.node}`,
-          position: { x, y: 300 },
-          data: { 
-            label: `Proxmox Node: ${node.node}`, 
-            type: 'proxmox',
-            status: node.status,
-            cpu: node.cpu,
-            nodeName: node.node
-          },
+    const groupedNodes: Record<string, any[]> = {};
+    topologyData.data.nodes.forEach((n: any) => {
+      const layer = n.layer || 'lan';
+      if (!groupedNodes[layer]) groupedNodes[layer] = [];
+      groupedNodes[layer].push(n);
+    });
+
+    for (const [layer, lNodes] of Object.entries(groupedNodes)) {
+      const config = layerConfig[layer] || { y: 300, xStart: 400, spacing: 200 };
+      const total = lNodes.length;
+      const startX = config.xStart - ((total - 1) * config.spacing) / 2;
+
+      lNodes.forEach((n: any, idx: number) => {
+        newNodes.push({
+          id: n.id,
+          position: { x: startX + idx * config.spacing, y: config.y },
+          data: { ...n },
           type: 'custom'
-        };
+        });
       });
-
-      const pveEdges = proxmoxData.data.map((node: any) => ({
-        id: `e-firewall-pve-${node.node}`,
-        source: 'firewall',
-        target: `pve-${node.node}`,
-        animated: node.status !== 'offline',
-        style: { 
-          stroke: node.status === 'offline' ? '#475569' : '#14b8a6', 
-          strokeWidth: node.status === 'offline' ? 1 : 2 
-        }
-      }));
-
-      setNodes([...baseNodes, ...pveNodes]);
-      setEdges([...baseEdges, ...pveEdges]);
-    } else {
-      setNodes(baseNodes);
-      setEdges(baseEdges);
     }
-  }, [proxmoxData, setNodes, setEdges, isDosSimulated]);
+
+    topologyData.data.edges.forEach((e: any) => {
+      newEdges.push({
+        id: `e-${e.source}-${e.target}`,
+        source: e.source,
+        target: e.target,
+        animated: e.type === 'overlay_tunnel' || e.type === 'virtual_link',
+        style: {
+          stroke: isDosSimulated && e.source === 'wan' && e.target === 'firewall' ? '#ef4444' : (e.type.includes('overlay') ? '#a855f7' : '#14b8a6'),
+          strokeWidth: isDosSimulated && e.source === 'wan' && e.target === 'firewall' ? 4 : 2
+        },
+        label: isDosSimulated && e.source === 'wan' && e.target === 'firewall' ? 'L7 DDoS Flood' : undefined,
+        labelStyle: isDosSimulated ? { fill: '#ef4444', fontWeight: 'bold' } : undefined
+      });
+    });
+
+    setNodes(newNodes);
+    setEdges(newEdges);
+  }, [topologyData, setNodes, setEdges, isDosSimulated]);
 
   const onConnect = useCallback(
     (params: any) => setEdges((eds) => addEdge(params, eds)),
@@ -201,8 +208,8 @@ export const Topology = () => {
   );
 
   const onNodeClick = useCallback((_: any, node: any) => {
-    if (node.data?.type === 'proxmox' && node.data?.nodeName) {
-      setSelectedNode(node.data.nodeName);
+    if (node.data?.layer === 'hypervisor' && node.data?.label) {
+      setSelectedNode(node.data.label);
     }
   }, []);
 
@@ -220,6 +227,7 @@ export const Topology = () => {
           <div className="flex gap-4 text-xs font-medium text-slate-400">
             <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span> DDoS Traffic</div>
             <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-teal-500"></span> Normal Link</div>
+            <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-purple-500"></span> Tailscale Overlay</div>
             <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-slate-600"></span> Offline Node</div>
           </div>
           <button 
