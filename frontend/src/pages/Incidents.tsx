@@ -20,24 +20,26 @@ export const Incidents = () => {
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [runningCorrelation, setRunningCorrelation] = useState(false);
+
+  const fetchIncidents = async () => {
+    try {
+      const token = localStorage.getItem('token') || '';
+      const res = await apiFetch('/api/v1/incidents', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+      if (data.incidents) {
+        setIncidents(data.incidents);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   useEffect(() => {
-    const fetchIncidents = async () => {
-      try {
-        const token = localStorage.getItem('token') || '';
-        const res = await apiFetch('/api/v1/incidents', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        const data = await res.json();
-        if (data.incidents) {
-          setIncidents(data.incidents);
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    };
     fetchIncidents();
   }, []);
 
@@ -195,13 +197,41 @@ export const Incidents = () => {
     );
   };
 
+  const handleRunCorrelation = async () => {
+    setRunningCorrelation(true);
+    try {
+      const token = localStorage.getItem('token') || '';
+      await apiFetch('/api/v1/incidents/run-correlation', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      await fetchIncidents();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setRunningCorrelation(false);
+    }
+  };
+
   return (
     <div className="p-6 h-full flex flex-col">
       <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold text-white">Incident Workflow</h1>
-        <div className="flex items-center gap-2 text-xs text-soc-muted">
-          <Sparkles className="w-4 h-4 text-soc-accent" />
-          AI-powered incident summaries available on each card
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={handleRunCorrelation}
+            disabled={runningCorrelation}
+            className="bg-soc-accent hover:bg-soc-accent/90 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+          >
+            <Sparkles className={`w-4 h-4 ${runningCorrelation ? 'animate-spin' : ''}`} />
+            {runningCorrelation ? 'Running...' : 'Run Correlation Engine'}
+          </button>
+          <div className="flex items-center gap-2 text-xs text-soc-muted">
+            <Sparkles className="w-4 h-4 text-soc-accent" />
+            AI-powered incident summaries available on each card
+          </div>
         </div>
       </div>
       <div className="flex gap-4 overflow-x-auto pb-4 flex-1">

@@ -8,6 +8,8 @@ export const Forensics = () => {
   const [jobId, setJobId] = useState('');
   const [status, setStatus] = useState<'idle' | 'uploading' | 'analyzing' | 'completed' | 'failed'>('idle');
   const [results, setResults] = useState<any>(null);
+  const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
+  const [analyzingAi, setAnalyzingAi] = useState(false);
   const token = useStore((state) => state.token);
 
   const handleUpload = async () => {
@@ -57,6 +59,26 @@ export const Forensics = () => {
     }
     return () => clearInterval(interval);
   }, [status, jobId]);
+
+  const handleAIAnalyze = async () => {
+    if (!results?.stats?.iocs?.dns_queries) return;
+    setAnalyzingAi(true);
+    try {
+      const res = await apiFetch('/api/v1/forensics/analyze-urls', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ urls: results.stats.iocs.dns_queries })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAiAnalysis(data.analysis);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setAnalyzingAi(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -157,9 +179,27 @@ export const Forensics = () => {
           </div>
 
           {/* DNS Queries */}
-          <div className="bg-soc-card rounded-xl p-6 border border-gray-800">
-            <h3 className="text-lg font-bold text-white mb-4">DNS Queries</h3>
-            <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar pr-2">
+          <div className="bg-soc-card rounded-xl p-6 border border-gray-800 flex flex-col">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold text-white">DNS Queries</h3>
+              <button 
+                onClick={handleAIAnalyze}
+                disabled={analyzingAi || results.stats.iocs.dns_queries.length === 0}
+                className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5"
+              >
+                {analyzingAi ? <Activity className="w-3 h-3 animate-pulse" /> : <FileSearch className="w-3 h-3" />}
+                AI Phishing Analysis
+              </button>
+            </div>
+            
+            {aiAnalysis && (
+              <div className="mb-4 p-3 bg-indigo-900/20 border border-indigo-500/30 rounded-lg">
+                <h4 className="text-xs font-bold text-indigo-400 uppercase mb-1">AI Risk Assessment</h4>
+                <div className="text-sm text-indigo-200 whitespace-pre-wrap">{aiAnalysis}</div>
+              </div>
+            )}
+            
+            <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar pr-2 flex-1">
               {results.stats.iocs.dns_queries.map((dns: string, idx: number) => (
                 <div key={idx} className="bg-black/40 border border-gray-800 p-2.5 rounded-lg text-sm font-mono text-indigo-300 truncate hover:text-indigo-200 hover:border-indigo-500/30 transition-colors">
                   {dns}

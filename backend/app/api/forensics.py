@@ -115,3 +115,28 @@ def get_pcap_result(job_id: str, current_user: str = Depends(get_current_user)):
     if job_id not in _pcap_results:
         raise HTTPException(status_code=404, detail="Analysis job not found")
     return _pcap_results[job_id]
+
+from pydantic import BaseModel
+
+class AIAnalyzeRequest(BaseModel):
+    urls: list[str]
+
+@router.post("/analyze-urls")
+async def analyze_urls(req: AIAnalyzeRequest, current_user: str = Depends(get_current_user)):
+    try:
+        from app.services.ai.provider import AIProviderFactory
+        from app.config import settings
+        provider_type = getattr(settings, "AI_PROVIDER", "ollama")
+        if provider_type == "ollama":
+            url = getattr(settings, "OLLAMA_URL", "http://localhost:11434")
+            provider = AIProviderFactory.get_provider("ollama", url=url)
+        else:
+            api_key = getattr(settings, "GEMINI_API_KEY", "")
+            provider = AIProviderFactory.get_provider("gemini", api_key=api_key)
+            
+        prompt = f"Analyze these URLs/DNS queries for potential phishing or malicious intent. Provide a short risk score out of 10 and a brief 1-sentence reason for each:\n" + "\n".join(req.urls[:10])
+        summary = await provider.generate_summary(prompt)
+        return {"status": "success", "analysis": summary}
+    except Exception as e:
+        logger.error(f"Error in AI URL analysis: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))

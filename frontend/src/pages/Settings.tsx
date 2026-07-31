@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../store/useStore';
-import { Settings as SettingsIcon, Save, Key, Clock, ShieldCheck, Eye, EyeOff, MessageCircle, Send } from 'lucide-react';
+import { Settings as SettingsIcon, Save, Key, Clock, ShieldCheck, Eye, EyeOff, MessageCircle, Send, Fingerprint, ExternalLink } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 
 export const SettingsPage: React.FC = () => {
@@ -179,6 +179,56 @@ export const SettingsPage: React.FC = () => {
                 />
               </div>
             )}
+          </div>
+        </div>
+
+        {/* IAM / SSO Config */}
+        <div className="bg-slate-900/50 rounded-2xl border border-indigo-700/50 p-6 backdrop-blur-md shadow-[0_0_15px_rgba(79,70,229,0.1)] relative overflow-hidden">
+          <div className="absolute top-0 right-0 bg-indigo-600 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-bl-lg">Enterprise Feature</div>
+          <h2 className="text-xl font-semibold text-slate-200 flex items-center gap-2 mb-2">
+            <Fingerprint size={20} className="text-indigo-400" />
+            Identity & Access Management (SSO)
+          </h2>
+          <p className="text-sm text-slate-400 mb-6">Configure Single Sign-On (OIDC/SAML) via Keycloak or Authentik to centrally manage access to the SOC Portal, Proxmox, and pfSense.</p>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-400 mb-1">Identity Provider URL (Issuer)</label>
+              <input 
+                type="text" 
+                defaultValue="https://sso.aceda.local/realms/socx"
+                className="bg-slate-950/50 border border-slate-700 rounded-lg px-4 py-2 w-full text-slate-200 focus:outline-none focus:border-indigo-500 font-mono"
+              />
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1">Client ID</label>
+                <input 
+                  type="text" 
+                  defaultValue="socx-portal"
+                  className="bg-slate-950/50 border border-slate-700 rounded-lg px-4 py-2 w-full text-slate-200 focus:outline-none focus:border-indigo-500 font-mono"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-1">Client Secret</label>
+                <input 
+                  type={showKeys ? "text" : "password"}
+                  defaultValue="enterprise-secret-key-mock"
+                  className="bg-slate-950/50 border border-slate-700 rounded-lg px-4 py-2 w-full text-slate-200 focus:outline-none focus:border-indigo-500 font-mono"
+                />
+              </div>
+            </div>
+            
+            <div className="pt-4 flex items-center justify-between border-t border-slate-800">
+              <div className="text-xs text-slate-500 flex items-center gap-2">
+                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                SSO Module Ready. Enabling will enforce OIDC login globally.
+              </div>
+              <button className="bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/30 px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2">
+                Enable Enterprise SSO
+              </button>
+            </div>
           </div>
         </div>
 

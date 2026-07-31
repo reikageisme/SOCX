@@ -11,6 +11,8 @@ interface Asset {
   criticality: string;
   owner: string;
   cves: string; // JSON string
+  protection_profile?: string;
+  waf_enabled?: boolean;
 }
 
 const SECURITY_TOOLS = [
@@ -74,24 +76,45 @@ export const Assets = () => {
     return () => clearInterval(interval);
   }, [activeScanId, token]);
 
-  useEffect(() => {
-    const fetchAssets = async () => {
-      try {
-        const res = await apiFetch('/api/v1/assets', {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          setAssets(data);
-        }
-      } catch (e) {
-        console.error(e);
+  const fetchAssets = async () => {
+    try {
+      const res = await apiFetch('/api/v1/assets', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setAssets(data);
       }
-    };
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
     fetchAssets();
   }, [token]);
+
+  const toggleWaf = async (asset: Asset) => {
+    try {
+      const newStatus = !asset.waf_enabled;
+      const res = await apiFetch(`/api/v1/assets/${asset.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+          waf_enabled: newStatus,
+          protection_profile: newStatus ? 'Critical WAF' : 'Standard'
+        })
+      });
+      if (res.ok) {
+        fetchAssets();
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const parseCVEs = (cvesStr: string) => {
     try {
@@ -383,7 +406,7 @@ export const Assets = () => {
               <tr>
                 <th className="p-4 font-medium"><Server size={16} className="inline mr-2" /> Hostname</th>
                 <th className="p-4 font-medium">IP Address</th>
-                <th className="p-4 font-medium">OS Version</th>
+                <th className="p-4 font-medium">Protection Profile</th>
                 <th className="p-4 font-medium"><Activity size={16} className="inline mr-2" /> Criticality</th>
                 <th className="p-4 font-medium"><ShieldAlert size={16} className="inline mr-2 text-rose-500" /> Vulnerabilities (CVEs)</th>
                 <th className="p-4 font-medium">Actions</th>
@@ -396,7 +419,22 @@ export const Assets = () => {
                   <tr key={asset.id} className="hover:bg-slate-800/30 transition-colors group">
                     <td className="p-4 whitespace-nowrap font-medium text-indigo-300">{asset.hostname}</td>
                     <td className="p-4 whitespace-nowrap text-sm font-mono text-slate-400">{asset.ip_address}</td>
-                    <td className="p-4 whitespace-nowrap text-slate-300">{asset.os_version || 'N/A'}</td>
+                    <td className="p-4 whitespace-nowrap">
+                      <div className="flex items-center gap-3">
+                        <span className={`px-2 py-1 rounded text-xs font-semibold flex items-center gap-1 ${
+                          asset.waf_enabled ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/50' : 'bg-slate-800 text-slate-400 border border-slate-700'
+                        }`}>
+                          {asset.waf_enabled ? <ShieldAlert size={12} className="text-indigo-400" /> : <ShieldAlert size={12} />}
+                          {asset.protection_profile || 'Standard'}
+                        </span>
+                        <button 
+                          onClick={() => toggleWaf(asset)}
+                          className={`w-8 h-4 rounded-full relative transition-colors ${asset.waf_enabled ? 'bg-indigo-500' : 'bg-slate-600'}`}
+                        >
+                          <span className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform ${asset.waf_enabled ? 'translate-x-4' : ''}`}></span>
+                        </button>
+                      </div>
+                    </td>
                     <td className="p-4 whitespace-nowrap">
                       <span className={`px-2 py-1 rounded text-xs font-semibold uppercase border ${
                         asset.criticality === 'high' ? 'bg-rose-500/20 text-rose-400 border-rose-500/50' : 

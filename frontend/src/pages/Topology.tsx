@@ -14,7 +14,7 @@ import {
   type Edge
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { Network, Server, Globe, Shield, Activity, X, Play, Square, HardDrive, Cpu } from 'lucide-react';
+import { Network, Server, Globe, Shield, Activity, X, Play, Square, HardDrive, Cpu, AlertTriangle } from 'lucide-react';
 import { useProxmoxNodes, useProxmoxVms } from '../hooks/useProxmox';
 
 // Custom Node Component
@@ -124,6 +124,7 @@ export const Topology = () => {
   const { data: proxmoxData } = useProxmoxNodes();
   
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
+  const [isDosSimulated, setIsDosSimulated] = useState(false);
 
   useEffect(() => {
     const baseNodes = [
@@ -147,9 +148,9 @@ export const Topology = () => {
         source: 'internet', 
         target: 'firewall', 
         animated: true, 
-        style: { stroke: '#ef4444', strokeWidth: 3 }, // Simulated heavy traffic (DDoS)
-        label: 'High Traffic',
-        labelStyle: { fill: '#ef4444', fontWeight: 'bold' }
+        style: { stroke: isDosSimulated ? '#ef4444' : '#14b8a6', strokeWidth: isDosSimulated ? 4 : 2 },
+        label: isDosSimulated ? 'L7 DDoS Flood' : 'Normal Link',
+        labelStyle: { fill: isDosSimulated ? '#ef4444' : '#14b8a6', fontWeight: 'bold' }
       }
     ];
 
@@ -192,7 +193,7 @@ export const Topology = () => {
       setNodes(baseNodes);
       setEdges(baseEdges);
     }
-  }, [proxmoxData, setNodes, setEdges]);
+  }, [proxmoxData, setNodes, setEdges, isDosSimulated]);
 
   const onConnect = useCallback(
     (params: any) => setEdges((eds) => addEdge(params, eds)),
@@ -215,12 +216,38 @@ export const Topology = () => {
           </h2>
           <p className="text-slate-400 text-sm mt-1">Real-time architecture map. Click on a Proxmox node to drill down.</p>
         </div>
-        <div className="flex gap-4 text-xs font-medium text-slate-400">
-          <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span> DDoS Traffic</div>
-          <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-teal-500"></span> Normal Link</div>
-          <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-slate-600"></span> Offline Node</div>
+        <div className="flex flex-col items-end gap-3">
+          <div className="flex gap-4 text-xs font-medium text-slate-400">
+            <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span> DDoS Traffic</div>
+            <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-teal-500"></span> Normal Link</div>
+            <div className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-slate-600"></span> Offline Node</div>
+          </div>
+          <button 
+            onClick={() => setIsDosSimulated(!isDosSimulated)}
+            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${
+              isDosSimulated 
+                ? 'bg-rose-600/20 text-rose-400 border border-rose-500/50 hover:bg-rose-600/30' 
+                : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+            }`}
+          >
+            <Activity size={16} />
+            {isDosSimulated ? 'Stop DoS Simulation' : 'Simulate DoS Attack'}
+          </button>
         </div>
       </div>
+
+      {isDosSimulated && (
+        <div className="bg-rose-900/40 border border-rose-500/50 text-rose-200 p-4 rounded-xl flex items-center gap-3 animate-fade-in shadow-[0_0_15px_rgba(225,29,72,0.1)]">
+          <AlertTriangle className="text-rose-400 animate-pulse shrink-0" size={24} />
+          <div>
+            <h4 className="font-bold">Critical Bottleneck Detected at ACS Firewall!</h4>
+            <p className="text-sm opacity-90">Inbound traffic exceeding 10Gbps. Automatic BGP Null Routing is highly recommended to mitigate upstream impact.</p>
+          </div>
+          <button className="ml-auto bg-rose-600 hover:bg-rose-500 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-lg transition-colors whitespace-nowrap">
+            Apply BGP Null Route
+          </button>
+        </div>
+      )}
 
       <div className="flex-1 bg-soc-card rounded-xl border border-gray-800 overflow-hidden relative">
         <ReactFlow

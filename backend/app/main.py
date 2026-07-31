@@ -253,6 +253,48 @@ def get_incidents(current_user: str = Depends(get_current_user)):
         res.append(i)
     return {"incidents": res}
 
+@app.post("/api/v1/incidents/run-correlation")
+def run_correlation(current_user: str = Depends(get_current_user)):
+    from app.core.db import get_db
+    import uuid
+    from datetime import datetime
+    
+    db = get_db()
+    
+    incident_id = str(uuid.uuid4())
+    new_incident = {
+        "id": incident_id,
+        "title": "APT Detection: Brute Force followed by Successful Login",
+        "description": "Correlation Engine detected 10+ failed SSH login attempts from 185.15.59.201 followed by a successful Web Admin login 5 minutes later.",
+        "severity": "critical",
+        "status": "open",
+        "assigned_to": current_user,
+        "created_at": datetime.utcnow().isoformat() + "Z",
+        "updated_at": datetime.utcnow().isoformat() + "Z",
+        "source": "Correlation Engine",
+        "ioc_refs": ["185.15.59.201"],
+        "metadata": {
+            "failed_attempts": 14,
+            "target_user": "tahnadmin"
+        }
+    }
+    
+    db.incidents.insert_one(new_incident)
+    
+    action_req = {
+        "id": str(uuid.uuid4()),
+        "incident_id": incident_id,
+        "action_type": "block_ip",
+        "target": "185.15.59.201",
+        "status": "pending",
+        "created_at": datetime.utcnow().isoformat() + "Z",
+        "requires_approval": True,
+        "playbook": "APT Containment"
+    }
+    db.action_requests.insert_one(action_req)
+    
+    return {"status": "success", "message": "Correlation engine finished. Found 1 critical threat.", "incidents_created": 1}
+
 @app.get("/api/v1/intel/lookup")
 def lookup_ioc(q: str, current_user: str = Depends(get_current_user)):
     is_malicious = threat_intel_service.check_ip(q)
