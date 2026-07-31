@@ -37,7 +37,7 @@ class UserResponse(BaseModel):
     class Config:
         from_attributes = True
 
-@router.get("/", response_model=List[UserResponse])
+@router.get("", response_model=List[UserResponse])
 def get_users(db: Session = Depends(get_db), current_user: str = Depends(get_current_user)):
     user = db.query(User).filter(User.username == current_user).first()
     if not user or user.role != "superadmin":
@@ -46,7 +46,7 @@ def get_users(db: Session = Depends(get_db), current_user: str = Depends(get_cur
     users = db.query(User).all()
     return users
 
-@router.post("/", response_model=UserResponse)
+@router.post("", response_model=UserResponse)
 def create_user(user_in: UserCreate, db: Session = Depends(get_db), current_user: str = Depends(get_current_user)):
     user = db.query(User).filter(User.username == current_user).first()
     if not user or user.role != "superadmin":

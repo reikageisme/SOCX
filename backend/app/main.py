@@ -33,6 +33,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+import mimetypes
+mimetypes.add_type("image/jpeg", ".jpg")
+mimetypes.add_type("image/jpeg", ".jpeg")
+mimetypes.add_type("image/png", ".png")
+mimetypes.add_type("image/gif", ".gif")
+
 os.makedirs("uploads", exist_ok=True)
 app.mount(f"{settings.API_V1_STR}/uploads", StaticFiles(directory="uploads"), name="uploads")
 
