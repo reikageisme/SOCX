@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useStore } from '../store/useStore';
 import { apiFetch } from '../lib/api';
-import { Shield, Users, Plus, Trash2, Edit2, Check, X, Search, ShieldAlert } from 'lucide-react';
+import { Shield, Users, Plus, Trash2, Edit2, Check, X, Search, ShieldAlert, Key } from 'lucide-react';
+import { IAMAccessReview } from '../components/IAMAccessReview';
 
 export const UserManagement = () => {
   const { userRole } = useStore();
+  const [activeTab, setActiveTab] = useState<'users' | 'access'>('users');
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -142,27 +144,51 @@ export const UserManagement = () => {
     <div className="p-8 max-w-7xl mx-auto h-[calc(100vh-2rem)] flex flex-col">
       <div className="flex justify-between items-center mb-8">
         <div className="flex items-center gap-3">
-          <Users className="text-indigo-400" size={28} />
-          <h1 className="text-2xl font-bold text-white tracking-wide">User Management</h1>
+          <Shield className="text-indigo-400" size={28} />
+          <h1 className="text-2xl font-bold text-white tracking-wide">Identity & Access Management</h1>
         </div>
-        <button 
-          onClick={openAddModal}
-          className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors text-sm font-medium"
-        >
-          <Plus size={16} /> Add User
-        </button>
+        
+        <div className="flex bg-slate-800 p-1 rounded-lg">
+          <button
+            onClick={() => setActiveTab('users')}
+            className={`px-4 py-2 flex items-center gap-2 rounded-md transition-colors text-sm font-medium ${
+              activeTab === 'users' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Users size={16} /> Directory
+          </button>
+          <button
+            onClick={() => setActiveTab('access')}
+            className={`px-4 py-2 flex items-center gap-2 rounded-md transition-colors text-sm font-medium ${
+              activeTab === 'access' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Key size={16} /> Access & API Licenses
+          </button>
+        </div>
+
+        {activeTab === 'users' && (
+          <button 
+            onClick={openAddModal}
+            className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors text-sm font-medium"
+          >
+            <Plus size={16} /> Add User
+          </button>
+        )}
       </div>
 
       <div className="bg-slate-900/50 border border-slate-800 rounded-xl flex-1 overflow-hidden flex flex-col">
-        <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/80">
-          <div className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-            <input 
-              type="text" 
-              placeholder="Search users..." 
-              className="bg-slate-800/50 border border-slate-700 rounded-lg pl-9 pr-4 py-1.5 text-sm text-white focus:outline-none focus:border-indigo-500/50 transition-colors w-64"
-            />
-          </div>
+        {activeTab === 'users' ? (
+          <>
+            <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/80">
+              <div className="relative">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                <input 
+                  type="text" 
+                  placeholder="Search users..." 
+                  className="bg-slate-800/50 border border-slate-700 rounded-lg pl-9 pr-4 py-1.5 text-sm text-white focus:outline-none focus:border-indigo-500/50 transition-colors w-64"
+                />
+              </div>
           <div className="text-sm text-slate-400">
             Total Users: <span className="text-white font-bold">{users.length}</span>
           </div>
@@ -238,9 +264,13 @@ export const UserManagement = () => {
                   </tr>
                 ))
               )}
-            </tbody>
-          </table>
-        </div>
+              </tbody>
+            </table>
+          </div>
+          </>
+        ) : (
+          <IAMAccessReview />
+        )}
       </div>
 
       {/* Modal */}
@@ -296,10 +326,11 @@ export const UserManagement = () => {
                   onChange={(e) => setForm({...form, role: e.target.value})}
                   className="w-full bg-slate-800 border border-slate-700 text-white rounded-lg px-4 py-2 focus:outline-none focus:border-indigo-500/50 transition-colors"
                 >
-                  <option value="analyst">Analyst</option>
-                  <option value="auditor">Auditor</option>
-                  <option value="admin">Admin</option>
-                  <option value="Super_Administrator">Super Admin</option>
+                  <option value="Super_Administrator">Super Administrator</option>
+                  <option value="SOC_Analyst_Tier2">SOC Analyst (Tier 2)</option>
+                  <option value="Penetration_Tester">Penetration Tester</option>
+                  <option value="DevOps_Engineer">DevOps Engineer</option>
+                  <option value="Security_Auditor">Security Auditor</option>
                 </select>
               </div>
 

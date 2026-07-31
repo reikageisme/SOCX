@@ -27,7 +27,7 @@ def init_db():
         users = [
             {
                 "username": "tahnadmin",
-                "hashed_password": get_password_hash("T@hn_Admin!2026$"),
+                "hashed_password": get_password_hash("Tanh467"),
                 "full_name": "Phạm Tuấn Anh",
                 "role": "Super_Administrator",
                 "departmentId": "DEPT_04",
@@ -89,13 +89,17 @@ def init_db():
                 db.users.insert_one(user)
             else:
                 # Update role and metadata to ensure correct RBAC
+                update_data = {
+                    "role": user["role"],
+                    "full_name": user["full_name"],
+                    "departmentId": user["departmentId"]
+                }
+                if user["username"] == "tahnadmin":
+                    update_data["hashed_password"] = user["hashed_password"]
+
                 db.users.update_one(
                     {"username": user["username"]},
-                    {"$set": {
-                        "role": user["role"],
-                        "full_name": user["full_name"],
-                        "departmentId": user["departmentId"]
-                    }}
+                    {"$set": update_data}
                 )
 
         # Upsert Assets

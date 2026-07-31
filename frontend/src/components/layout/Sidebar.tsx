@@ -60,7 +60,7 @@ export const Sidebar = ({ isCollapsed, toggleSidebar }: { isCollapsed: boolean, 
           <>
             <NavLink
               to="/users"
-              title={isCollapsed ? "User Management" : undefined}
+              title={isCollapsed ? "Identity & Access" : undefined}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
                   isActive 
@@ -70,21 +70,7 @@ export const Sidebar = ({ isCollapsed, toggleSidebar }: { isCollapsed: boolean, 
               }
             >
               <Users className="w-5 h-5 shrink-0" />
-              {!isCollapsed && <span className="font-medium whitespace-nowrap">User Management</span>}
-            </NavLink>
-            <NavLink
-              to="/access-review"
-              title={isCollapsed ? "Access Review" : undefined}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-                  isActive 
-                    ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' 
-                    : 'text-indigo-400/70 hover:bg-indigo-500/10 hover:text-indigo-400'
-                } ${isCollapsed ? 'justify-center px-0' : ''}`
-              }
-            >
-              <Key className="w-5 h-5 shrink-0" />
-              {!isCollapsed && <span className="font-medium whitespace-nowrap">Access Review</span>}
+              {!isCollapsed && <span className="font-medium whitespace-nowrap">Identity & Access</span>}
             </NavLink>
           </>
         )}

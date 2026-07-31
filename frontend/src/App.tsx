@@ -16,7 +16,6 @@ import { Topology } from './pages/Topology';
 import { UserManagement } from './pages/UserManagement';
 import { Profile } from './pages/Profile';
 import { ThreatIntel } from './pages/ThreatIntel';
-import { AccessReview } from './pages/AccessReview';
 import { useStore } from './store/useStore';
 
 const queryClient = new QueryClient();
@@ -53,7 +52,7 @@ function App() {
             <Route path="users" element={<UserManagement />} />
             <Route path="profile" element={<Profile />} />
             <Route path="intel" element={<ThreatIntel />} />
-            <Route path="access-review" element={<AccessReview />} />
+
           </Route>
         </Routes>
       </BrowserRouter>

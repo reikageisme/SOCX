@@ -242,7 +242,13 @@ export const LogsPage: React.FC = () => {
                         <tr className="bg-slate-950/50">
                           <td colSpan={5} className="p-4 border-b border-slate-800">
                             <pre className="text-xs text-emerald-400/80 font-mono overflow-x-auto p-4 bg-slate-900 rounded-xl border border-slate-800">
-                              {JSON.stringify(JSON.parse(log.details), null, 2)}
+                              {(() => {
+                                try {
+                                  return JSON.stringify(JSON.parse(log.details), null, 2);
+                                } catch {
+                                  return log.details;
+                                }
+                              })()}
                             </pre>
                           </td>
                         </tr>
