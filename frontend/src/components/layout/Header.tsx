@@ -34,6 +34,9 @@ export const Header = () => {
     if (useStore.getState().token) {
       fetchProfile();
     }
+    
+    window.addEventListener('profileUpdated', fetchProfile);
+    return () => window.removeEventListener('profileUpdated', fetchProfile);
   }, []);
 
   const handleLookup = async (e: React.FormEvent) => {

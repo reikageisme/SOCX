@@ -34,6 +34,7 @@ export const Profile = () => {
           new_password: '',
           confirm_password: ''
         });
+        window.dispatchEvent(new Event('profileUpdated'));
       }
     } catch (err) {
       console.error(err);
@@ -60,6 +61,7 @@ export const Profile = () => {
         setProfile({...profile, avatar_url: data.avatar_url});
         setEditForm(prev => ({...prev, avatar_url: data.avatar_url}));
         setSuccess('Avatar updated successfully');
+        window.dispatchEvent(new Event('profileUpdated'));
       } else {
         const err = await res.json();
         setError(err.detail || 'Failed to upload avatar');
