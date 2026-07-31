@@ -66,7 +66,7 @@ export const AccessReview: React.FC = () => {
     }
   };
 
-  if (userRole !== 'superadmin') {
+  if (userRole !== 'superadmin' && userRole !== 'Super_Administrator') {
     return (
       <div className="p-6 h-full flex flex-col items-center justify-center text-slate-400">
         <Lock size={64} className="mb-4 text-rose-500/50" />

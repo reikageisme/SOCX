@@ -52,16 +52,16 @@ interface SocState {
 
 export const useStore = create<SocState>((set) => ({
   token: localStorage.getItem('token') || null,
-  userRole: localStorage.getItem('token') ? (parseJwt(localStorage.getItem('token')!)?.role || 'auditor') : 'auditor',
+  userRole: localStorage.getItem('token') ? (parseJwt(localStorage.getItem('token')!)?.role || 'Security_Auditor') : 'Security_Auditor',
   setToken: (token) => {
     if (token) {
       localStorage.setItem('token', token);
       const decoded = parseJwt(token);
-      set({ token, userRole: decoded?.role || 'auditor' });
+      set({ token, userRole: decoded?.role || 'Security_Auditor' });
     }
     else {
       localStorage.removeItem('token');
-      set({ token, userRole: 'auditor' });
+      set({ token, userRole: 'Security_Auditor' });
     }
   },
   wsConnected: false,

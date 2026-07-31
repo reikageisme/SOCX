@@ -73,6 +73,10 @@ export const SettingsPage: React.FC = () => {
     setTimeout(() => setTestDiscordStatus('idle'), 3000);
   };
 
+  if (userRole !== 'Super_Administrator') {
+    return <div className="p-6 text-white">Access Denied: Requires Administrator Privileges</div>;
+  }
+
   if (!settings) {
     return <div className="p-6 text-white">Loading settings...</div>;
   }

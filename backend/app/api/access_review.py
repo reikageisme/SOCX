@@ -33,15 +33,8 @@ def log_audit(db, user, action, target_type, target_id, details=""):
 @router.post("/seed")
 def seed_data(db: Any = Depends(get_db), current_user: str = Depends(require_superadmin)):
     """Seed data if empty"""
-    if db.staff.count_documents({}) > 0:
+    if db.systems_registry.count_documents({}) > 0:
         return {"status": "already_seeded"}
-
-    staff_data = [
-        {"id": "staff-1", "full_name": "Tanh Admin", "email": "tanh@aceda.local", "role": "Super Admin", "status": "active", "department": "SOC", "updated_at": datetime.utcnow().isoformat() + "Z"},
-        {"id": "staff-2", "full_name": "John Doe", "email": "johndoe@aceda.local", "role": "Security Analyst", "status": "active", "department": "SOC", "updated_at": datetime.utcnow().isoformat() + "Z"},
-        {"id": "staff-3", "full_name": "Alice Smith", "email": "alice@aceda.local", "role": "Engineer", "status": "departed", "department": "IT", "updated_at": datetime.utcnow().isoformat() + "Z"}
-    ]
-    db.staff.insert_many(staff_data)
 
     sys_data = [
         {"id": "sys-1", "name": "Proxmox VE", "category": "infrastructure", "owner_team": "IT Ops"},
@@ -53,16 +46,26 @@ def seed_data(db: Any = Depends(get_db), current_user: str = Depends(require_sup
     db.systems_registry.insert_many(sys_data)
 
     now = datetime.utcnow()
+    
+    # Get actual users to link grants
+    admin = db.users.find_one({"username": "tahnadmin"})
+    analyst = db.users.find_one({"username": "phong.thanh"})
+    auditor = db.users.find_one({"username": "nam.auditor"})
+    
+    admin_id = admin["id"] if admin else "staff-1"
+    analyst_id = analyst["id"] if analyst else "staff-2"
+    auditor_id = auditor["id"] if auditor else "staff-3"
+
     grants_data = [
-        {"id": "g-1", "staff_id": "staff-1", "system_id": "sys-1", "permission_level": "Super Admin", "granted_at": now.isoformat() + "Z", "granted_by": "System", "last_reviewed_at": (now - timedelta(days=10)).isoformat() + "Z", "next_review_due": (now + timedelta(days=80)).isoformat() + "Z", "status": "active"},
-        {"id": "g-2", "staff_id": "staff-2", "system_id": "sys-2", "permission_level": "Read-only API", "granted_at": now.isoformat() + "Z", "granted_by": "System", "last_reviewed_at": (now - timedelta(days=95)).isoformat() + "Z", "next_review_due": (now - timedelta(days=5)).isoformat() + "Z", "status": "active"},
-        {"id": "g-3", "staff_id": "staff-3", "system_id": "sys-3", "permission_level": "Contributor", "granted_at": now.isoformat() + "Z", "granted_by": "System", "last_reviewed_at": now.isoformat() + "Z", "next_review_due": (now + timedelta(days=90)).isoformat() + "Z", "status": "pending_review"}
+        {"id": "g-1", "staff_id": admin_id, "system_id": "sys-1", "permission_level": "Super Admin", "granted_at": now.isoformat() + "Z", "granted_by": "System", "last_reviewed_at": (now - timedelta(days=10)).isoformat() + "Z", "next_review_due": (now + timedelta(days=80)).isoformat() + "Z", "status": "active"},
+        {"id": "g-2", "staff_id": analyst_id, "system_id": "sys-2", "permission_level": "Read-only API", "granted_at": now.isoformat() + "Z", "granted_by": "System", "last_reviewed_at": (now - timedelta(days=95)).isoformat() + "Z", "next_review_due": (now - timedelta(days=5)).isoformat() + "Z", "status": "active"},
+        {"id": "g-3", "staff_id": auditor_id, "system_id": "sys-3", "permission_level": "Contributor", "granted_at": now.isoformat() + "Z", "granted_by": "System", "last_reviewed_at": now.isoformat() + "Z", "next_review_due": (now + timedelta(days=90)).isoformat() + "Z", "status": "pending_review"}
     ]
     db.access_grants.insert_many(grants_data)
 
     creds_data = [
-        {"id": "cred-1", "system_id": "sys-2", "owner_staff_id": "staff-1", "credential_type": "API Key", "created_at": (now - timedelta(days=100)).isoformat() + "Z", "last_rotated_at": (now - timedelta(days=100)).isoformat() + "Z", "expires_at": None, "quota_limit": 10000, "quota_period": "monthly", "notes": "Main OTX Key"},
-        {"id": "cred-2", "system_id": "sys-4", "owner_staff_id": "staff-1", "credential_type": "API Key", "created_at": now.isoformat() + "Z", "last_rotated_at": now.isoformat() + "Z", "expires_at": (now + timedelta(days=3)).isoformat() + "Z", "quota_limit": 1000, "quota_period": "daily", "notes": "AbuseIPDB Free Tier"}
+        {"id": "cred-1", "system_id": "sys-2", "owner_staff_id": admin_id, "credential_type": "API Key", "created_at": (now - timedelta(days=100)).isoformat() + "Z", "last_rotated_at": (now - timedelta(days=100)).isoformat() + "Z", "expires_at": None, "quota_limit": 10000, "quota_period": "monthly", "notes": "Main OTX Key"},
+        {"id": "cred-2", "system_id": "sys-4", "owner_staff_id": admin_id, "credential_type": "API Key", "created_at": now.isoformat() + "Z", "last_rotated_at": now.isoformat() + "Z", "expires_at": (now + timedelta(days=3)).isoformat() + "Z", "quota_limit": 1000, "quota_period": "daily", "notes": "AbuseIPDB Free Tier"}
     ]
     db.credentials_registry.insert_many(creds_data)
 
@@ -71,7 +74,7 @@ def seed_data(db: Any = Depends(get_db), current_user: str = Depends(require_sup
 @router.get("/staff")
 def get_staff(db: Any = Depends(get_db), current_user: str = Depends(require_superadmin)):
     log_audit(db, current_user, "VIEW", "staff_list", "all")
-    return list(db.staff.find({}, {"_id": 0}))
+    return list(db.users.find({}, {"_id": 0}))
 
 @router.get("/systems")
 def get_systems(db: Any = Depends(get_db), current_user: str = Depends(require_superadmin)):
@@ -82,7 +85,7 @@ def get_grants(db: Any = Depends(get_db), current_user: str = Depends(require_su
     log_audit(db, current_user, "VIEW", "access_grants", "all")
     # Join logic manually since we are using basic mongo driver
     grants = list(db.access_grants.find({}, {"_id": 0}))
-    staff = {s["id"]: s for s in db.staff.find({}, {"_id": 0})}
+    staff = {s["id"]: s for s in db.users.find({}, {"_id": 0})}
     systems = {s["id"]: s for s in db.systems_registry.find({}, {"_id": 0})}
     
     for g in grants:
@@ -109,7 +112,7 @@ def review_grant(grant_id: str, db: Any = Depends(get_db), current_user: str = D
 def get_credentials(db: Any = Depends(get_db), current_user: str = Depends(require_superadmin)):
     log_audit(db, current_user, "VIEW", "credentials_registry", "all")
     creds = list(db.credentials_registry.find({}, {"_id": 0}))
-    staff = {s["id"]: s for s in db.staff.find({}, {"_id": 0})}
+    staff = {s["id"]: s for s in db.users.find({}, {"_id": 0})}
     systems = {s["id"]: s for s in db.systems_registry.find({}, {"_id": 0})}
     
     import redis

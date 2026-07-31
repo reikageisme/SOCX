@@ -3,18 +3,18 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 
 const navItems = [
-  { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-  { name: 'Topology', path: '/topology', icon: Network },
-  { name: 'Threat Map', path: '/map', icon: Map },
-  { name: 'Assets', path: '/assets', icon: Server },
-  { name: 'Incidents', path: '/incidents', icon: AlertTriangle },
-  { name: 'Threat Intel', path: '/intel', icon: Globe },
-  { name: 'Pentest & Reports', path: '/pentest', icon: ShieldCheck },
-  { name: 'Forensics', path: '/forensics', icon: ActivitySquare },
-  { name: 'Rules', path: '/rules', icon: ShieldAlert },
-  { name: 'Logs', path: '/logs', icon: FileText },
-  { name: 'Profile', path: '/profile', icon: User },
-  { name: 'Settings', path: '/settings', icon: Settings },
+  { name: 'Dashboard', path: '/', icon: LayoutDashboard, roles: ['superadmin', 'Super_Administrator', 'SOC_Analyst_Tier2', 'Security_Auditor'] },
+  { name: 'Topology', path: '/topology', icon: Network, roles: ['superadmin', 'Super_Administrator', 'DevOps_Engineer'] },
+  { name: 'Threat Map', path: '/map', icon: Map, roles: ['superadmin', 'Super_Administrator', 'SOC_Analyst_Tier2', 'Security_Auditor'] },
+  { name: 'Assets', path: '/assets', icon: Server, roles: ['superadmin', 'Super_Administrator', 'Penetration_Tester', 'DevOps_Engineer'] },
+  { name: 'Incidents', path: '/incidents', icon: AlertTriangle, roles: ['superadmin', 'Super_Administrator', 'SOC_Analyst_Tier2', 'Penetration_Tester'] },
+  { name: 'Threat Intel', path: '/intel', icon: Globe, roles: ['superadmin', 'Super_Administrator', 'SOC_Analyst_Tier2'] },
+  { name: 'Pentest & Reports', path: '/pentest', icon: ShieldCheck, roles: ['superadmin', 'Super_Administrator', 'Penetration_Tester'] },
+  { name: 'Forensics', path: '/forensics', icon: ActivitySquare, roles: ['superadmin', 'Super_Administrator', 'SOC_Analyst_Tier2'] },
+  { name: 'Rules', path: '/rules', icon: ShieldAlert, roles: ['superadmin', 'Super_Administrator', 'DevOps_Engineer'] },
+  { name: 'Logs', path: '/logs', icon: FileText, roles: ['superadmin', 'Super_Administrator', 'SOC_Analyst_Tier2', 'DevOps_Engineer', 'Security_Auditor'] },
+  { name: 'Profile', path: '/profile', icon: User, roles: ['superadmin', 'Super_Administrator', 'SOC_Analyst_Tier2', 'Penetration_Tester', 'DevOps_Engineer', 'Security_Auditor'] },
+  { name: 'Settings', path: '/settings', icon: Settings, roles: ['superadmin', 'Super_Administrator'] },
 ];
 
 export const Sidebar = ({ isCollapsed, toggleSidebar }: { isCollapsed: boolean, toggleSidebar: () => void }) => {
@@ -39,7 +39,7 @@ export const Sidebar = ({ isCollapsed, toggleSidebar }: { isCollapsed: boolean, 
         {!isCollapsed && <h1 className="text-xl font-bold tracking-wider text-white truncate">ACE <span className="text-soc-accent">CS</span></h1>}
       </div>
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto overflow-x-hidden">
-        {navItems.map((item) => (
+        {navItems.filter(item => !item.roles || item.roles.includes(userRole)).map((item) => (
           <NavLink
             key={item.name}
             to={item.path}
@@ -56,7 +56,7 @@ export const Sidebar = ({ isCollapsed, toggleSidebar }: { isCollapsed: boolean, 
             {!isCollapsed && <span className="font-medium whitespace-nowrap">{item.name}</span>}
           </NavLink>
         ))}
-        {userRole === 'superadmin' && (
+        { (userRole === 'superadmin' || userRole === 'Super_Administrator') && (
           <>
             <NavLink
               to="/users"
