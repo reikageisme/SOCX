@@ -24,6 +24,20 @@ class ThreatIntelService:
         self.last_pull_time = None
         self.last_pull_status = "pending"
 
+    def _track_api_usage(self, service: str):
+        try:
+            import redis
+            from datetime import datetime
+            r = redis.Redis(host='redis', port=6379, db=0)
+            now = datetime.utcnow()
+            if service == "abuseipdb":
+                key = f"quota:{service}:{now.strftime('%Y-%m-%d')}"
+            else:
+                key = f"quota:{service}:{now.strftime('%Y-%m')}"
+            r.incr(key)
+        except:
+            pass
+
     async def initialize(self):
         logger.info("Initializing Threat Intel Cache...")
         await self.pull_threat_intel()
@@ -76,6 +90,7 @@ class ThreatIntelService:
             async with aiohttp.ClientSession() as session:
                 async with session.get(url, headers=headers) as response:
                     if response.status == 200:
+                        self._track_api_usage("otxalienvault")
                         data = await response.json()
                         for pulse in data.get("results", []):
                             pulse_name = pulse.get("name", "Unknown Pulse")
@@ -102,6 +117,7 @@ class ThreatIntelService:
             async with aiohttp.ClientSession() as session:
                 async with session.post(url, headers=headers, json=payload) as response:
                     if response.status == 200:
+                        self._track_api_usage("threatfox")
                         data = await response.json()
                         for ioc in data.get("data", []):
                             if ioc.get("ioc_type") in ["ip:port", "ipv4:port"]:
@@ -128,6 +144,7 @@ class ThreatIntelService:
             async with aiohttp.ClientSession() as session:
                 async with session.get(url, headers=headers, params=params) as response:
                     if response.status == 200:
+                        self._track_api_usage("abuseipdb")
                         data = await response.json()
                         for item in data.get("data", []):
                             ip = item.get("ipAddress")

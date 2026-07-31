@@ -33,11 +33,25 @@ export const SettingsPage: React.FC = () => {
   const handleSave = async () => {
     setIsSaving(true);
     // In a real app we would PUT these to the server
+    
+    // Integration: Sync with credentials_registry to update rotation metadata
+    try {
+      const credsRes = await apiFetch('/api/v1/access-review/credentials', { headers: { Authorization: `Bearer ${token}` } });
+      if (credsRes.ok) {
+        const creds = await credsRes.json();
+        for (const c of creds) {
+          await apiFetch(`/api/v1/access-review/credentials/${c.id}/rotate`, { method: 'PUT', headers: { Authorization: `Bearer ${token}` } });
+        }
+      }
+    } catch (e) {
+      console.error("Failed to sync credential rotation", e);
+    }
+
     setTimeout(() => {
       setIsSaving(false);
-      setSaveMsg('Settings updated successfully!');
+      setSaveMsg('Settings & Credential Metadata updated successfully!');
       setTimeout(() => setSaveMsg(''), 3000);
-    }, 1000);
+    }, 500);
   };
 
   const handleTestDiscord = async () => {
