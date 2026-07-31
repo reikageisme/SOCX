@@ -79,8 +79,7 @@ export const Profile = () => {
     }
     
     const payload: any = {
-      full_name: editForm.full_name,
-      avatar_url: editForm.avatar_url
+      full_name: editForm.full_name
     };
     
     if (editForm.new_password) {
@@ -139,13 +138,16 @@ export const Profile = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {/* Left Column: Avatar & Basic Info */}
         <div className="col-span-1 space-y-6">
-          <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-6 flex flex-col items-center">
-            <div className="relative mb-4 group w-32 h-32 rounded-full border-4 border-slate-800 flex-shrink-0">
-              <img 
-                src={profile.avatar_url ? profile.avatar_url : `https://ui-avatars.com/api/?name=${profile.username}&background=random`} 
-                alt="Avatar" 
-                className="w-full h-full rounded-full object-cover"
-              />
+          <div className="bg-slate-900/40 border border-slate-800/60 rounded-2xl p-6 flex flex-col items-center shadow-lg backdrop-blur-sm relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-teal-500/20 via-teal-400/80 to-emerald-400/20"></div>
+            <div className="relative mb-5 group w-36 h-36 rounded-full p-1 bg-gradient-to-tr from-teal-500/30 to-emerald-400/10 flex-shrink-0">
+              <div className="w-full h-full rounded-full border-4 border-slate-900 overflow-hidden bg-slate-800 shadow-inner">
+                <img 
+                  src={profile.avatar_url ? profile.avatar_url : `https://ui-avatars.com/api/?name=${profile.username}&background=random`} 
+                  alt="Avatar" 
+                  className="w-full h-full object-cover"
+                />
+              </div>
               {isEditing && (
                 <label className="absolute inset-0 bg-black/60 rounded-full flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
                   <Camera className="text-white mb-1" size={24} />
@@ -163,21 +165,28 @@ export const Profile = () => {
             {!isEditing ? (
               <button 
                 onClick={() => setIsEditing(true)}
-                className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-colors text-sm font-medium border border-slate-700"
+                className="w-full mt-2 py-2.5 bg-slate-800/80 hover:bg-slate-700 text-slate-200 rounded-xl transition-all duration-300 text-sm font-semibold border border-slate-700/50 shadow-sm hover:shadow"
               >
                 Edit Profile
               </button>
             ) : (
-              <div className="flex gap-2 w-full">
+              <div className="flex gap-3 w-full mt-2">
                 <button 
                   onClick={handleSave}
-                  className="flex-1 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg transition-colors text-sm font-medium flex justify-center items-center gap-1"
+                  className="flex-1 py-2.5 bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 text-white rounded-xl transition-all duration-300 text-sm font-semibold flex justify-center items-center gap-2 shadow-lg shadow-teal-500/20"
                 >
                   <Check size={16} /> Save
                 </button>
                 <button 
-                  onClick={() => setIsEditing(false)}
-                  className="flex-1 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-colors text-sm font-medium flex justify-center items-center gap-1"
+                  onClick={() => {
+                    setIsEditing(false);
+                    setEditForm({
+                      full_name: profile.full_name || '',
+                      new_password: '',
+                      confirm_password: ''
+                    });
+                  }}
+                  className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition-all duration-300 text-sm font-semibold flex justify-center items-center gap-2 border border-slate-700/50"
                 >
                   <X size={16} /> Cancel
                 </button>
@@ -188,56 +197,59 @@ export const Profile = () => {
 
         {/* Right Column: Details Form */}
         <div className="col-span-1 md:col-span-2">
-          <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-6">
-            <h3 className="text-lg font-medium text-white mb-6 border-b border-slate-800 pb-2">Account Details</h3>
+          <div className="bg-slate-900/40 border border-slate-800/60 rounded-2xl p-8 shadow-lg backdrop-blur-sm relative">
+            <h3 className="text-lg font-semibold text-white mb-6 flex items-center gap-2">
+              <span className="w-1.5 h-6 bg-teal-500 rounded-full inline-block"></span>
+              Account Details
+            </h3>
             
-            <div className="space-y-5">
+            <div className="space-y-6">
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wider">Username</label>
+                <label className="block text-xs font-semibold text-slate-400 mb-2 uppercase tracking-widest">Username</label>
                 <input 
                   type="text" 
                   value={profile.username} 
                   disabled 
-                  className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2 text-slate-300 focus:outline-none cursor-not-allowed"
+                  className="w-full bg-slate-950/50 border border-slate-800/80 rounded-xl px-4 py-3 text-slate-500 focus:outline-none cursor-not-allowed font-medium"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wider">Full Name</label>
+                <label className="block text-xs font-semibold text-slate-400 mb-2 uppercase tracking-widest">Full Name</label>
                 <input 
                   type="text" 
                   value={isEditing ? editForm.full_name : (profile.full_name || '')} 
                   onChange={(e) => setEditForm({...editForm, full_name: e.target.value})}
                   disabled={!isEditing}
-                  className={`w-full ${isEditing ? 'bg-slate-800 border-teal-500/50 text-white' : 'bg-slate-800/50 border-slate-700 text-slate-300'} border rounded-lg px-4 py-2 focus:outline-none transition-colors`}
+                  className={`w-full ${isEditing ? 'bg-slate-800/80 border-teal-500/50 text-white shadow-inner focus:border-teal-400 focus:ring-1 focus:ring-teal-400/30' : 'bg-slate-950/50 border-slate-800/80 text-slate-300 cursor-default'} border rounded-xl px-4 py-3 outline-none transition-all duration-300 font-medium`}
                 />
               </div>
 
               {isEditing && (
-                <div className="pt-4 border-t border-slate-800 mt-6">
-                  <h4 className="text-sm font-medium text-slate-300 mb-4 flex items-center gap-2">
+                <div className="pt-6 border-t border-slate-800/80 mt-8">
+                  <h4 className="text-sm font-semibold text-slate-300 mb-5 flex items-center gap-2">
                     <Key size={16} className="text-teal-400" /> 
                     Change Password
                   </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div>
-                      <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wider">New Password</label>
+                      <label className="block text-xs font-semibold text-slate-400 mb-2 uppercase tracking-widest">New Password</label>
                       <input 
                         type="password" 
                         value={editForm.new_password} 
                         onChange={(e) => setEditForm({...editForm, new_password: e.target.value})}
                         placeholder="Leave blank to keep current"
-                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-teal-500/50 transition-colors"
+                        className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl px-4 py-3 text-white outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400/30 transition-all placeholder:text-slate-600"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wider">Confirm Password</label>
+                      <label className="block text-xs font-semibold text-slate-400 mb-2 uppercase tracking-widest">Confirm Password</label>
                       <input 
                         type="password" 
                         value={editForm.confirm_password} 
                         onChange={(e) => setEditForm({...editForm, confirm_password: e.target.value})}
                         placeholder="Confirm new password"
-                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-teal-500/50 transition-colors"
+                        className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl px-4 py-3 text-white outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400/30 transition-all placeholder:text-slate-600"
                       />
                     </div>
                   </div>
