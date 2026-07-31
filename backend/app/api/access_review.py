@@ -120,7 +120,7 @@ def get_credentials(db: Any = Depends(get_db), current_user: str = Depends(requi
     # Try connecting to Redis to fetch actual quota usage
     redis_client = None
     try:
-        redis_client = redis.Redis(host='redis', port=6379, db=0, decode_responses=True)
+        redis_client = redis.Redis(host='redis', port=6379, db=0, decode_responses=True, socket_connect_timeout=1, socket_timeout=1)
         redis_client.ping()
     except:
         redis_client = None
