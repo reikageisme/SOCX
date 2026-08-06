@@ -17,6 +17,8 @@ services:
     volumes:
       - acs_data:/app/data
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/run/tailscale/tailscaled.sock:/var/run/tailscale/tailscaled.sock:ro
+      - /usr/bin/tailscale:/usr/bin/tailscale:ro
     networks:
       - acs-network
     depends_on:
