@@ -152,11 +152,12 @@ export const Topology = () => {
     if (!topologyData?.data) return;
 
     const layerConfig: Record<string, { y: number, xStart: number, spacing: number }> = {
-      wan: { y: 50, xStart: 400, spacing: 200 },
-      lan: { y: 150, xStart: 400, spacing: 200 },
-      overlay: { y: 150, xStart: 700, spacing: 200 },
-      hypervisor: { y: 300, xStart: 200, spacing: 300 },
-      vm: { y: 450, xStart: 100, spacing: 200 }
+      wan: { y: 50, xStart: 400, spacing: 250 },
+      lan: { y: 180, xStart: 400, spacing: 200 },
+      hypervisor: { y: 320, xStart: 400, spacing: 300 },
+      vm: { y: 480, xStart: 400, spacing: 180 },
+      overlay_router: { y: 180, xStart: 950, spacing: 200 },
+      overlay_peer: { y: 320, xStart: 950, spacing: 180 }
     };
 
     const newNodes: Node[] = [];
@@ -164,7 +165,11 @@ export const Topology = () => {
 
     const groupedNodes: Record<string, any[]> = {};
     topologyData.data.nodes.forEach((n: any) => {
-      const layer = n.layer || 'lan';
+      let layer = n.layer || 'lan';
+      // Tweak overlay nodes to their own specific layout layers
+      if (n.type === 'overlay_router') layer = 'overlay_router';
+      if (n.type === 'ts_peer') layer = 'overlay_peer';
+
       if (!groupedNodes[layer]) groupedNodes[layer] = [];
       groupedNodes[layer].push(n);
     });
