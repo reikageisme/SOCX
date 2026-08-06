@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../store/useStore';
 import { apiFetch } from '../lib/api';
-import { Shield, Key, Clock, AlertTriangle, CheckCircle, RefreshCw, Info, Lock } from 'lucide-react';
+import { Key, AlertTriangle, CheckCircle, RefreshCw, Info, Lock } from 'lucide-react';
 
 export const IAMAccessReview: React.FC = () => {
   const token = useStore((state) => state.token);

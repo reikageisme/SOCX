@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useStore } from '../../store/useStore';
-import { ShieldCheck, Bell, LogOut, User, Settings, AlertTriangle, Search } from 'lucide-react';
+import { ShieldCheck, Bell, LogOut, Settings, AlertTriangle, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../../lib/api';
 

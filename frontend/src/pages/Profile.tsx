@@ -184,6 +184,7 @@ export const Profile = () => {
                     setIsEditing(false);
                     setEditForm({
                       full_name: profile.full_name || '',
+                      avatar_url: profile.avatar_url || '',
                       new_password: '',
                       confirm_password: ''
                     });

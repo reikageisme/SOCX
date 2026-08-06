@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../store/useStore';
-import { Settings as SettingsIcon, Save, Key, Clock, ShieldCheck, Eye, EyeOff, MessageCircle, Send, Fingerprint, ExternalLink } from 'lucide-react';
+import { Settings as SettingsIcon, Save, Key, Clock, ShieldCheck, Eye, EyeOff, MessageCircle, Send, Fingerprint } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 
 export const SettingsPage: React.FC = () => {
