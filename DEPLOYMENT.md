@@ -77,3 +77,35 @@ git log --oneline
 git checkout abcd123
 ./deploy.sh
 ```
+
+
+## Trang Infrastructure (giám sát + quản trị host)
+
+Trang `/infrastructure` hiển thị 4 vòng tròn tài nguyên (dung lượng đĩa, CPU, RAM,
+băng thông), các nhóm "Tài nguyên khác" và bảng node/VM/LXC có nút điều khiển.
+Dữ liệu được đẩy trực tiếp qua WebSocket `\`/api/v1/ws/infrastructure?token=<JWT>\``
+theo chu kỳ `INFRA_POLL_SECONDS` (mặc định 5 giây), kèm fallback REST
+`\`GET /api/v1/proxmox/overview\``.
+
+### Quyền cần cấp cho API token Proxmox
+
+Token khai báo trong `PROXMOX_TOKEN_ID` / `PROXMOX_TOKEN_SECRET` cần các quyền sau
+trên đường dẫn `/` (hoặc tối thiểu `/nodes` và `/storage`):
+
+| Quyền | Dùng cho |
+|-------|----------|
+| `Sys.Audit` | `/nodes/{node}/status`, `services`, `certificates`, `apt/update`, `replication` |
+| `VM.Audit` | Danh sách và chỉ số của VM/LXC |
+| `Datastore.Audit` | Dung lượng các storage pool |
+| `VM.PowerMgmt` | Nút khởi động / tắt / khởi động lại VM (chỉ vai trò quản trị) |
+
+Nếu token thiếu quyền, các chỉ số tương ứng trả về 0 hoặc rỗng thay vì làm hỏng trang —
+kiểm tra log backend với tiền tố `[proxmox]` để biết endpoint nào bị từ chối.
+
+### Ghi chú
+
+- CT100 (host chạy chính nền tảng ACS) bị chặn mọi thao tác tắt/khởi động lại/cách ly từ UI.
+- Cảnh báo mức nghiêm trọng tự động tạo incident `[Hạ tầng] ...` trong module Incidents,
+  có debounce 30 phút để tránh trùng lặp.
+- `NET_LINK_MBPS` chỉ là giá trị giả định để quy đổi phần trăm băng thông; đặt đúng tốc độ
+  uplink thực tế của node để vòng tròn phản ánh chính xác.

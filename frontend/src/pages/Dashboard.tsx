@@ -5,6 +5,7 @@ import { useSlaMetrics } from '../hooks/useAnalytics';
 import { Clock, Timer, Plus } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { LineChart, Line, YAxis, ResponsiveContainer } from 'recharts';
 
 const Sparkline = ({ nodeName, type }: { nodeName: string, type: 'cpu' | 'mem' }) => {
@@ -166,7 +167,9 @@ export const Dashboard = () => {
 
     // WebSocket subscription
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/api/v1/ws/infrastructure`;
+    const token = useStore.getState().token;
+    if (!token) return;
+    const wsUrl = `${protocol}//${window.location.host}/api/v1/ws/infrastructure?token=${encodeURIComponent(token)}`;
     const ws = new WebSocket(wsUrl);
     
     ws.onmessage = (event) => {
@@ -306,6 +309,10 @@ export const Dashboard = () => {
               <Server className="w-5 h-5 text-soc-accent" />
               Proxmox Infrastructure
             </h3>
+            <Link to="/infrastructure"
+              className="ml-auto mr-3 text-sm text-soc-accent hover:text-sky-300 transition-colors">
+              Xem chi tiết &rarr;
+            </Link>
             {userRole === 'admin' && (
               <button className="flex items-center gap-1 bg-soc-accent/20 text-soc-accent hover:bg-soc-accent/30 px-3 py-1.5 rounded-lg text-sm transition-colors border border-soc-accent/30">
                 <Plus size={16} /> New VM/CT

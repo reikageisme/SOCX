@@ -31,6 +31,12 @@ class MongoDBStorage:
                 else:
                     logger.error("Max retries reached. MongoDB failed to initialize.")
 
+    def get_db(self):
+        """Tra ve handle DB (None neu chua khoi tao). Callers phai kiem tra None."""
+        if self.db is None:
+            logger.debug("MongoDB chua duoc khoi tao - get_db() tra ve None")
+        return self.db
+
     def close(self):
         if self.client:
             self.client.close()

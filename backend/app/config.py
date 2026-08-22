@@ -12,6 +12,12 @@ class Settings(BaseSettings):
     PROXMOX_TOKEN_SECRET: str = "your-token-secret-here"
     PROXMOX_VERIFY_SSL: bool = False
 
+    # Infrastructure dashboard (trang Infrastructure / cPanel-style)
+    NET_LINK_MBPS: int = 1000          # Bang thong uplink gia dinh cho moi node (Mbps)
+    INFRA_WARN_PERCENT: float = 80.0   # Nguong canh bao vang
+    INFRA_CRIT_PERCENT: float = 90.0   # Nguong canh bao do
+    INFRA_POLL_SECONDS: int = 5        # Chu ky poll + broadcast WebSocket
+
     # Security / JWT
     SECRET_KEY: str = "a-very-secret-key-change-this-in-production"
     ALGORITHM: str = "HS256"

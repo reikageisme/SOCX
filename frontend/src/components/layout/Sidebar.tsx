@@ -1,10 +1,11 @@
-import { Shield, LayoutDashboard, Map, FileText, Settings, ShieldAlert, ChevronLeft, ChevronRight, AlertTriangle, Server, Network, ShieldCheck, ActivitySquare, Users, User, Globe, LogOut } from 'lucide-react';
+import { Boxes, Shield, LayoutDashboard, Map, FileText, Settings, ShieldAlert, ChevronLeft, ChevronRight, AlertTriangle, Server, Network, ShieldCheck, ActivitySquare, Users, User, Globe, LogOut } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 
 const navItems = [
   { name: 'Dashboard', path: '/', icon: LayoutDashboard, roles: ['superadmin', 'Super_Administrator', 'SOC_Analyst_Tier2', 'Security_Auditor'] },
   { name: 'Topology', path: '/topology', icon: Network, roles: ['superadmin', 'Super_Administrator', 'DevOps_Engineer'] },
+  { name: 'Infrastructure', path: '/infrastructure', icon: Boxes, roles: ['superadmin', 'Super_Administrator', 'DevOps_Engineer', 'SOC_Analyst_Tier2', 'Security_Auditor'] },
   { name: 'Threat Map', path: '/map', icon: Map, roles: ['superadmin', 'Super_Administrator', 'SOC_Analyst_Tier2', 'Security_Auditor'] },
   { name: 'Assets', path: '/assets', icon: Server, roles: ['superadmin', 'Super_Administrator', 'Penetration_Tester', 'DevOps_Engineer'] },
   { name: 'Incidents', path: '/incidents', icon: AlertTriangle, roles: ['superadmin', 'Super_Administrator', 'SOC_Analyst_Tier2', 'Penetration_Tester'] },

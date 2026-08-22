@@ -13,6 +13,7 @@ import { Assets } from './pages/Assets';
 import { Incidents } from './pages/Incidents';
 import { Forensics } from './pages/Forensics';
 import { Topology } from './pages/Topology';
+import { Infrastructure } from './pages/Infrastructure';
 import { UserManagement } from './pages/UserManagement';
 import { Profile } from './pages/Profile';
 import { ThreatIntel } from './pages/ThreatIntel';
@@ -49,6 +50,7 @@ function App() {
             <Route path="settings" element={<SettingsPage />} />
             <Route path="forensics" element={<Forensics />} />
             <Route path="topology" element={<Topology />} />
+            <Route path="infrastructure" element={<Infrastructure />} />
             <Route path="users" element={<UserManagement />} />
             <Route path="profile" element={<Profile />} />
             <Route path="intel" element={<ThreatIntel />} />

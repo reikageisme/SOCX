@@ -17,6 +17,7 @@
 | Module | Description |
 |--------|-------------|
 | Dashboard | System overview with real-time threat map widget |
+| Infrastructure | Live Proxmox resource dashboard (disk/CPU/RAM/bandwidth gauges, storage pools, SOC signals) + VM/LXC control |
 | Threat Map | Full-screen global attack visualization |
 | Assets | Asset Inventory (Server tracking) |
 | Incidents | SOAR-lite incident response with Kanban workflow |

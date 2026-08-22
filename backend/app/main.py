@@ -62,7 +62,7 @@ app.include_router(topology_router, prefix=f"{settings.API_V1_STR}/topology", ta
 @app.websocket("/ws/threat-map")
 async def websocket_endpoint(websocket: WebSocket, token: str = Query(default=None)):
     # ── Step 1: Verify token BEFORE accepting the connection ──
-    username = verify_token(token)
+    username, _role = verify_token(token)
     if username is None:
         ws_logger.warning(
             f"[WS] Rejected connection: invalid/missing token from {websocket.client}"
@@ -395,7 +395,10 @@ async def startup_event():
     from app.core.proxmox_jobs import poll_proxmox_and_broadcast
     
     threat_intel_service.scheduler.add_job(check_access_reviews, 'interval', hours=24)
-    threat_intel_service.scheduler.add_job(poll_proxmox_and_broadcast, 'interval', seconds=5)
+    threat_intel_service.scheduler.add_job(
+        poll_proxmox_and_broadcast, 'interval',
+        seconds=settings.INFRA_POLL_SECONDS, max_instances=1, coalesce=True,
+    )
     
     # Initialize ClickHouse (non-blocking — degrades gracefully if unavailable)
     await clickhouse_storage.initialize(host="clickhouse", port=8123)

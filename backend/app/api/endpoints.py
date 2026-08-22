@@ -76,13 +76,46 @@ def get_node_rrddata(node_name: str, timeframe: str = "hour", current_user: str 
     data = proxmox_service.get_rrddata(node_name, timeframe)
     return {"status": "success", "data": data}
 
+@router.get("/proxmox/overview")
+def get_infrastructure_overview(current_user: str = Depends(get_current_user)):
+    """
+    Toan bo so lieu ha tang cho trang Infrastructure:
+    4 vong tron (dia/CPU/RAM/bang thong), cac nhom tai nguyen khac,
+    canh bao, storage pool, tin hieu SOC, danh sach node/VM/LXC.
+    """
+    from app.core.infra_overview import build_overview
+    return {"status": "success", "data": build_overview()}
+
+
+@router.get("/proxmox/nodes/{node_name}/tasks")
+def get_node_tasks(node_name: str, limit: int = 30, current_user: str = Depends(get_current_user)):
+    """Nhat ky task gan day cua node (backup, start/stop, migrate...)."""
+    tasks = proxmox_service.get_tasks(node_name, limit)
+    return {"status": "success", "data": tasks}
+
+
+@router.get("/proxmox/nodes/{node_name}/services")
+def get_node_services(node_name: str, current_user: str = Depends(get_current_user)):
+    """Trang thai cac dich vu he thong tren node."""
+    return {"status": "success", "data": proxmox_service.get_services(node_name)}
+
+
 @router.post("/proxmox/nodes/{node_name}/vms/{vmid}/action")
 def execute_vm_action(node_name: str, vmid: int, action_req: ProxmoxAction, user: dict = Depends(get_current_user_with_role)):
     if user["role"] == "auditor":
         raise HTTPException(status_code=403, detail="Auditors cannot perform actions")
         
     action = action_req.action
-    
+
+    ALLOWED_ACTIONS = {"start", "stop", "shutdown", "reboot", "suspend", "resume",
+                       "isolate", "snapshot"}
+    if action not in ALLOWED_ACTIONS:
+        raise HTTPException(status_code=400, detail=f"Unsupported action '{action}'")
+
+    # CT100 chay chinh nen tang ACS - khong cho tat/khoi dong lai tu UI
+    if str(vmid) == "100" and action in {"stop", "shutdown", "reboot", "suspend", "isolate", "snapshot"}:
+        raise HTTPException(status_code=400, detail="Cannot perform this action on CT100 (ACS Host)")
+
     if action in ["isolate", "snapshot"]:
         if str(vmid) == "100":
             raise HTTPException(status_code=400, detail="Cannot perform this action on CT100 (ACS Host)")
@@ -92,6 +125,8 @@ def execute_vm_action(node_name: str, vmid: int, action_req: ProxmoxAction, user
         from datetime import datetime
         
         db = mongodb_storage.get_db()
+        if db is None:
+            raise HTTPException(status_code=503, detail="Incident store unavailable (MongoDB not initialized)")
         now = datetime.utcnow()
         inc = {
             "id": str(uuid.uuid4()),
