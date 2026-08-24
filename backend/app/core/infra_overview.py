@@ -406,6 +406,9 @@ def build_overview() -> Dict[str, Any]:
     # ── Tin hieu SOC ──────────────────────────────────────────────────
     soc = _collect_soc_signals()
 
+    # ── Cam bien phan cung tu agent chay tren host ────────────────────
+    sensors = _collect_sensors()
+
     # ── Cac thanh "Tài nguyên khác" ───────────────────────────────────
     nodes_online = len([n for n in nodes if n["status"] == "online"])
     qemu_running = len([v for v in vms if v["type"] == "qemu" and v["status"] == "running"])
@@ -488,6 +491,10 @@ def build_overview() -> Dict[str, Any]:
             ],
         },
         {
+            "key": "thermal", "label": "Nhiệt độ & Điện năng",
+            "items": _thermal_items(sensors),
+        },
+        {
             "key": "ops", "label": "Vận hành host",
             "items": [
                 _bar("backup", "Backup gần nhất", last_backup_ts, None,
@@ -540,6 +547,16 @@ def build_overview() -> Dict[str, Any]:
     if cert_soon:
         warnings.append({"level": "warn",
                          "message": f"{cert_soon} chứng chỉ sẽ hết hạn trong 30 ngày tới."})
+    for h in sensors.get("hosts", []):
+        if h.get("stale"):
+            warnings.append({"level": "warn",
+                             "message": f"Agent cảm biến trên {h['host']} đã ngừng gửi dữ liệu."})
+        for t in h.get("temps", []):
+            crit = t.get("crit")
+            if crit and t.get("celsius") and t["celsius"] >= crit - 5:
+                warnings.append({"level": "crit",
+                                 "message": f"{t.get('group')} / {t.get('label')} trên {h['host']} "
+                                            f"đang {t['celsius']}°C (ngưỡng nguy hiểm {crit}°C)."})
     if updates_pending:
         warnings.append({"level": "warn",
                          "message": f"{updates_pending} gói cập nhật đang chờ trên các node."})
@@ -555,6 +572,7 @@ def build_overview() -> Dict[str, Any]:
         "warnings": warnings,
         "storages": storages,
         "soc": soc,
+        "sensors": sensors,
         # Giu nguyen 2 khoa nay de Dashboard cu van chay
         "nodes": nodes,
         "vms": vms,
@@ -629,3 +647,75 @@ def _collect_soc_signals() -> Dict[str, Any]:
         pass
 
     return out
+
+
+def _collect_sensors() -> Dict[str, Any]:
+    """Anh chup cam bien moi nhat. Rong neu chua cai agent tren host."""
+    try:
+        from app.api.sensors import latest_snapshot
+        return latest_snapshot()
+    except Exception as e:
+        logger.debug(f"Khong lay duoc du lieu cam bien: {e}")
+        return {"hosts": [], "policy": {}, "agent_connected": False}
+
+
+def _thermal_items(sensors: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Cac thanh nhiet do / dien nang cho khoi 'Tai nguyen khac'."""
+    hosts = sensors.get("hosts") or []
+    if not hosts:
+        return [_bar("agent", "Agent cảm biến", 0, None,
+                     "Chưa cài trên host", severity="info",
+                     hint="Cài agent/aegis_sensor_agent.py trên Proxmox host để có nhiệt độ và quạt")]
+
+    items: List[Dict[str, Any]] = []
+    for h in hosts:
+        prefix = f"{h['host']}: " if len(hosts) > 1 else ""
+
+        hotspot = h.get("cpu_hotspot")
+        if hotspot is not None:
+            crit = next((t.get("crit") for t in h.get("temps", [])
+                         if t.get("chip") in ("coretemp", "k10temp") and t.get("crit")), 90)
+            items.append(_bar("cpu_temp", f"{prefix}Nhiệt độ CPU", hotspot, crit,
+                              f"{hotspot}°C / ngưỡng {crit}°C",
+                              percent=_pct(hotspot, crit)))
+
+        for t in h.get("temps", []):
+            if t.get("chip") == "nvme" and "Composite" in (t.get("label") or ""):
+                items.append(_bar("nvme_temp", f"{prefix}Nhiệt độ NVMe",
+                                  t["celsius"], t.get("crit") or 80,
+                                  f"{t['celsius']}°C",
+                                  percent=_pct(t["celsius"], t.get("crit") or 80)))
+            elif t.get("chip") == "drivetemp":
+                items.append(_bar("sata_temp", f"{prefix}Nhiệt độ ổ SATA",
+                                  t["celsius"], 70,
+                                  f"{t['celsius']}°C", percent=_pct(t["celsius"], 70),
+                                  hint="Ngưỡng vận hành an toàn của SSD SATA thường là 70°C"))
+            elif t.get("chip", "").startswith("pch"):
+                items.append(_bar("pch_temp", f"{prefix}Nhiệt độ chipset",
+                                  t["celsius"], 100,
+                                  f"{t['celsius']}°C", percent=_pct(t["celsius"], 100)))
+
+        watts = (h.get("power") or {}).get("watts")
+        if watts:
+            items.append(_bar("power", f"{prefix}Điện năng CPU", watts, 65,
+                              f"{watts} W", percent=_pct(watts, 65),
+                              hint="Đo qua Intel RAPL, chỉ tính phần package CPU"))
+
+        fan = h.get("fan") or {}
+        if fan.get("supported"):
+            state = fan.get("state")
+            label = {"max": "Đang chạy tối đa", "bios_auto": "BIOS tự điều khiển"}.get(state, "Không rõ")
+            items.append(_bar("fan", f"{prefix}Quạt", state, None, label,
+                              severity="warn" if state == "max" else "ok",
+                              hint=fan.get("note", "")))
+        else:
+            items.append(_bar("fan", f"{prefix}Quạt", "n/a", None,
+                              "Bo mạch không hỗ trợ", severity="info"))
+
+        for d in h.get("disks", []):
+            used = d.get("percentage_used")
+            if isinstance(used, (int, float)):
+                items.append(_bar(f"wear_{d['device']}", f"{prefix}Hao mòn /dev/{d['device']}",
+                                  used, 100, f"{used}%", percent=float(used)))
+
+    return items

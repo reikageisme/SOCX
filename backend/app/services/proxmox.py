@@ -40,6 +40,8 @@ class ProxmoxService:
     def __init__(self):
         self.proxmox = None
         self._cache = _TTLCache()
+        self._fail_until = {}   # key -> thoi diem duoc phep goi lai
+        self._last_error = {}   # key -> thong bao loi da log gan nhat
         self._connect()
 
     def _connect(self):
@@ -62,14 +64,35 @@ class ProxmoxService:
         return self.proxmox
 
     def _cached(self, key: str, ttl: float, loader, default):
+        """
+        Doc co cache. Khi API tra loi, tam ngung goi lai trong mot khoang thoi gian
+        va chi ghi log MOT lan cho moi loai loi.
+
+        Loi 403 (token thieu quyen) khong tu khoi phuc, nen backoff 10 phut thay vi
+        goi lai moi chu ky poll 5 giay - neu khong log se ngap va Proxmox bi hoi phi.
+        """
+        now = time.time()
+        if self._fail_until.get(key, 0) > now:
+            return default
+
         cached = self._cache.get(key, ttl)
         if cached is not None:
             return cached
+
         try:
             value = loader()
         except Exception as e:
-            print(f"[proxmox] {key} failed: {e}")
+            msg = str(e)
+            denied = "403" in msg or "Permission check failed" in msg
+            self._fail_until[key] = now + (600 if denied else 30)
+            if self._last_error.get(key) != msg:
+                self._last_error[key] = msg
+                suffix = " — tam ngung goi trong 10 phut" if denied else ""
+                print(f"[proxmox] {key}: {msg}{suffix}")
             return default
+
+        self._fail_until.pop(key, None)
+        self._last_error.pop(key, None)
         self._cache.set(key, value)
         return value
 
@@ -154,14 +177,11 @@ class ProxmoxService:
                  "swapused": 0, "swaptotal": 8_589_934_592}
                 for i in range(60)
             ]
-        api = self._api()
-        if not api:
+        if not self._api():
             return []
-        try:
-            return api.nodes(node_name).rrddata.get(timeframe=timeframe)
-        except Exception as e:
-            print(f"Error fetching RRD for node {node_name}: {str(e)}")
-            return []
+        return self._cached(f"rrd:{node_name}:{timeframe}", 20,
+                            lambda: self._api().nodes(node_name).rrddata.get(timeframe=timeframe),
+                            [])
 
     # ── Mo rong: du lieu cho trang Infrastructure ─────────────────────
 

@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import uuid
@@ -39,7 +40,9 @@ def _get_redis():
 async def poll_proxmox_and_broadcast():
     """Poll Proxmox, day payload live qua WebSocket va sinh incident khi vuot nguong."""
     try:
-        payload = build_overview()
+        # proxmoxer dung HTTP dong bo. Goi thang trong coroutine se chan event loop,
+        # khien uvicorn khong tra loi duoc healthcheck va toan bo API bi khung lai.
+        payload = await asyncio.to_thread(build_overview)
     except Exception as e:
         logger.error(f"build_overview failed: {e}")
         return

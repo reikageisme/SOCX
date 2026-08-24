@@ -108,6 +108,12 @@ export interface InfraSoc {
   last_event: string | null;
 }
 
+export interface SensorsBlock {
+  hosts: any[];
+  policy: { mode: 'auto' | 'max'; on_celsius: number; off_celsius: number; enabled: boolean };
+  agent_connected: boolean;
+}
+
 export interface InfraOverview {
   type: string;
   generated_at: string;
@@ -119,6 +125,7 @@ export interface InfraOverview {
   warnings: InfraWarning[];
   storages: InfraStorage[];
   soc: InfraSoc;
+  sensors?: SensorsBlock;
   nodes: InfraNode[];
   vms: InfraGuest[];
 }

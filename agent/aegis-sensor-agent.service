@@ -1,0 +1,26 @@
+[Unit]
+Description=Aegis SOC sensor agent (nhiet do, SMART, dieu khien quat)
+Documentation=https://github.com/reikageisme/SOCX
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/default/aegis-sensor-agent
+ExecStart=/usr/bin/python3 /usr/local/bin/aegis-sensor-agent.py
+Restart=always
+RestartSec=5
+
+# Agent bat SIGTERM de tra quat ve cho BIOS truoc khi thoat.
+# Cho no du thoi gian lam viec do truoc khi bi giet cung.
+KillSignal=SIGTERM
+TimeoutStopSec=15
+
+# Can quyen ghi /sys/class/hwmon/*/pwm1_enable nen chay bang root,
+# nhung siet lai moi thu khac.
+NoNewPrivileges=yes
+ProtectHome=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

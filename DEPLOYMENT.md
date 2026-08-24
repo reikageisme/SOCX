@@ -109,3 +109,66 @@ kiểm tra log backend với tiền tố `[proxmox]` để biết endpoint nào 
   có debounce 30 phút để tránh trùng lặp.
 - `NET_LINK_MBPS` chỉ là giá trị giả định để quy đổi phần trăm băng thông; đặt đúng tốc độ
   uplink thực tế của node để vòng tròn phản ánh chính xác.
+
+
+## Sensor Agent — nhiệt độ, SMART, điều khiển quạt
+
+Nhiệt độ và quạt nằm ở tầng phần cứng của Proxmox host. Container **không đọc được**
+`/sys/class/hwmon` của host, và kể cả privileged LXC cũng không ghi được vào đó
+(sysfs mount read-only, hwmon toàn symlink trỏ về `/sys/devices/...`). Vì vậy phần
+này chạy bằng một agent riêng **trên host**, không phải trong CT.
+
+### Cài đặt (chạy trên host pve)
+
+```bash
+cd /root && git clone https://github.com/reikageisme/SOCX.git socx-agent
+bash socx-agent/agent/install-sensor-agent.sh https://<IP-CT-SOC> <INTERNAL_API_KEY>
+```
+
+`INTERNAL_API_KEY` phải trùng giá trị trong `backend/.env`.
+
+### Kiểm tra trước khi cài
+
+```bash
+python3 agent/sensor_discovery.py
+```
+
+Dòng `[3] Dieu khien` cho biết bo mạch có cho chỉnh quạt hay không.
+
+### Khả năng theo từng loại bo mạch
+
+| Bo mạch | Đọc nhiệt | Đọc RPM | Chỉnh quạt |
+|---|---|---|---|
+| Có chip Super I/O (nct6775, it87…) | ✓ | ✓ | PWM 0–255 |
+| HP ProDesk / EliteDesk Mini (`hp-wmi`) | ✓ | ✗ | Chỉ hai nấc: BIOS auto / tối đa |
+| Server có IPMI | ✓ | ✓ | Cần lệnh raw riêng từng hãng (chưa hỗ trợ) |
+| Không có gì | ✓ (coretemp) | ✗ | ✗ |
+
+### Nguyên tắc an toàn
+
+- Vòng điều khiển nằm trọn trên host. Mất mạng hay backend chết thì bảo vệ quá nhiệt
+  vẫn chạy bằng chính sách lưu tại `/var/lib/aegis-sensor-agent/policy.json`.
+- Cơ chế tự động **chỉ được phép làm mát mạnh hơn**. Không tồn tại đường nào cho phép
+  phần mềm hạ quạt xuống trong lúc nhiệt đang cao.
+- Mọi đường thoát (systemctl stop, Ctrl-C, crash) đều trả quạt về cho BIOS.
+- Ngưỡng nhận từ backend được chặn vào khoảng an toàn 45–95°C trước khi áp dụng, và
+  ngưỡng tắt luôn bị ép thấp hơn ngưỡng bật ít nhất 3°C để quạt không bật tắt liên tục.
+
+### Vận hành
+
+```bash
+systemctl status aegis-sensor-agent
+journalctl -u aegis-sensor-agent -f
+python3 /usr/local/bin/aegis-sensor-agent.py --once      # in một lần rồi thoát
+python3 /usr/local/bin/aegis-sensor-agent.py --once --dry-run
+```
+
+### API liên quan
+
+| Endpoint | Xác thực | Công dụng |
+|---|---|---|
+| `POST /api/v1/sensors/ingest` | `X-API-Key` | Agent gửi số liệu, nhận lại chính sách quạt |
+| `GET /api/v1/sensors/latest` | JWT | Số liệu mới nhất |
+| `GET /api/v1/sensors/history?minutes=180` | JWT | Chuỗi thời gian (ghi mỗi 60s, giữ 7 ngày) |
+| `GET /api/v1/sensors/policy` | JWT | Đọc chính sách |
+| `PUT /api/v1/sensors/policy` | JWT (quản trị) | Đổi chế độ và ngưỡng |

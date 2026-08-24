@@ -9,6 +9,8 @@ import type {
   Gauge as GaugeData, InfraGuest, InfraNode, ResourceItem, Severity, StreamStatus,
 } from '../hooks/useInfrastructure';
 import { useStore } from '../store/useStore';
+import { ThermalPanel } from '../components/ThermalPanel';
+import type { SensorsBlock } from '../components/ThermalPanel';
 import { apiFetch } from '../lib/api';
 
 /* ── Bảng màu theo mức độ ─────────────────────────────────────────── */
@@ -495,6 +497,12 @@ export const Infrastructure = () => {
               </div>
             )}
           </div>
+
+          {/* Nhiệt độ & Quạt */}
+          <ThermalPanel
+            sensors={data.sensors as unknown as SensorsBlock | undefined}
+            onRefresh={refresh}
+          />
 
           {/* Storage pools */}
           {data.storages.length > 0 && (
