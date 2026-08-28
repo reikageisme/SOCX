@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, UploadFile, File, BackgroundTasks, HTTPE
 from app.api.endpoints import get_current_user
 from app.services.discord import discord_service
 from typing import Dict, Any
-import pyshark
 import logging
 import uuid
 import os

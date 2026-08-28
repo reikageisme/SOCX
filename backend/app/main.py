@@ -11,7 +11,6 @@ from app.api.assets import router as assets_router
 from app.api.system import router as system_router
 from app.api.hunt import router as hunt_router
 from app.api.analytics import router as analytics_router
-from app.api.pentest import router as pentest_router
 from app.api.forensics import router as forensics_router
 from app.api.users import router as users_router
 from app.api.intel import router as intel_router
@@ -53,7 +52,6 @@ app.include_router(assets_router, prefix=f"{settings.API_V1_STR}/assets", tags=[
 app.include_router(system_router, prefix=f"{settings.API_V1_STR}/system", tags=["system"])
 app.include_router(hunt_router, prefix=f"{settings.API_V1_STR}/hunt", tags=["hunt"])
 app.include_router(analytics_router, prefix=f"{settings.API_V1_STR}/analytics", tags=["analytics"])
-app.include_router(pentest_router, prefix=f"{settings.API_V1_STR}/pentest", tags=["pentest"])
 app.include_router(forensics_router, prefix=f"{settings.API_V1_STR}/forensics", tags=["forensics"])
 app.include_router(users_router, prefix=f"{settings.API_V1_STR}/users", tags=["users"])
 app.include_router(intel_router, prefix=f"{settings.API_V1_STR}/intel", tags=["intel"])

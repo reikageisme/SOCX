@@ -50,9 +50,6 @@ websockets==16.1.1
 yarl==1.24.5
 docker==7.1.0
 
-python-nmap
-pyshark
-
 python-whois
 scapy
 pymongo

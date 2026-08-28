@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { apiFetch } from '../lib/api';
 import { useStore } from '../store/useStore';
-import { ShieldAlert, Server, Activity, Search, Clock, Terminal, ChevronRight, Zap } from 'lucide-react';
+import { ShieldAlert, Server, Activity } from 'lucide-react';
 
 interface Asset {
   id: string;
@@ -10,71 +10,14 @@ interface Asset {
   os_version: string;
   criticality: string;
   owner: string;
-  cves: string; // JSON string
+  cves: string;
   protection_profile?: string;
   waf_enabled?: boolean;
 }
 
-const SECURITY_TOOLS = [
-  { id: 'nmap', name: 'Nmap', desc: 'Network Discovery & Port Scanning', icon: '🔍' },
-  { id: 'sqlmap', name: 'SQLMap', desc: 'Automatic SQL injection detection', icon: '💉' },
-  { id: 'zap', name: 'OWASP ZAP', desc: 'Web Vulnerability Scanner', icon: '🕸️' },
-  { id: 'burp', name: 'Burp Suite', desc: 'Professional Web Scanner', icon: '🦊' },
-  { id: 'nuclei', name: 'Nuclei', desc: 'Fast vulnerability scanner', icon: '⚛️' },
-  { id: 'nikto', name: 'Nikto', desc: 'Web server scanner', icon: '🌐' },
-  { id: 'wpscan', name: 'WPScan', desc: 'WordPress vulnerability scanner', icon: '📝' },
-  { id: 'dirb', name: 'DIRB', desc: 'Web content scanner', icon: '📁' },
-  { id: 'gobuster', name: 'Gobuster', desc: 'Directory & DNS busting', icon: '👻' },
-  { id: 'hydra', name: 'Hydra', desc: 'Network logon cracker', icon: '🐉' },
-  { id: 'metasploit', name: 'Metasploit', desc: 'Penetration testing framework', icon: '🎯' },
-  { id: 'openvas', name: 'OpenVAS', desc: 'Comprehensive vulnerability scanner', icon: '🛡️' },
-  { id: 'masscan', name: 'Masscan', desc: 'Mass IP port scanner', icon: '🚀' },
-  { id: 'amass', name: 'Amass', desc: 'In-depth Attack Surface Mapping', icon: '🗺️' },
-  { id: 'sublist3r', name: 'Sublist3r', desc: 'Fast subdomains enumeration', icon: '📋' },
-];
-
 export const Assets = () => {
   const [assets, setAssets] = useState<Asset[]>([]);
-  const [scanningId, setScanningId] = useState<string | null>(null);
   const token = useStore((state) => state.token);
-  
-  // Command Center State
-  const [cmdInput, setCmdInput] = useState('');
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [activeSuggestion, setActiveSuggestion] = useState(0);
-  const [cmdHistory, setCmdHistory] = useState<{time: string, cmd: string, status: string}[]>([]);
-  const [activeScanId, setActiveScanId] = useState<string | null>(null);
-  const [activeScanResult, setActiveScanResult] = useState<any>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    let interval: any;
-    if (activeScanId) {
-      interval = setInterval(async () => {
-        try {
-          const res = await apiFetch(`/api/v1/pentest/scan/${activeScanId}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          const data = await res.json();
-          setActiveScanResult(data);
-          
-          if (data.status === 'completed' || data.status === 'failed') {
-            clearInterval(interval);
-            setCmdHistory(prev => {
-              const newHist = [...prev];
-              if (newHist.length > 0 && newHist[0].status === 'Executing...') {
-                 newHist[0].status = data.status === 'completed' ? 'Success (See output)' : 'Failed';
-              }
-              return newHist;
-            });
-          }
-        } catch (e) {
-          // ignore
-        }
-      }, 2000);
-    }
-    return () => clearInterval(interval);
-  }, [activeScanId, token]);
 
   const fetchAssets = async () => {
     try {
@@ -82,17 +25,13 @@ export const Assets = () => {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
-      if (Array.isArray(data)) {
-        setAssets(data);
-      }
+      if (Array.isArray(data)) setAssets(data);
     } catch (e) {
       console.error(e);
     }
   };
 
-  useEffect(() => {
-    fetchAssets();
-  }, [token]);
+  useEffect(() => { fetchAssets(); }, [token]);
 
   const toggleWaf = async (asset: Asset) => {
     try {
@@ -108,12 +47,8 @@ export const Assets = () => {
           protection_profile: newStatus ? 'Critical WAF' : 'Standard'
         })
       });
-      if (res.ok) {
-        fetchAssets();
-      }
-    } catch (e) {
-      console.error(e);
-    }
+      if (res.ok) fetchAssets();
+    } catch (e) { console.error(e); }
   };
 
   const parseCVEs = (cvesStr: string) => {
@@ -121,285 +56,17 @@ export const Assets = () => {
       const parsed = JSON.parse(cvesStr);
       if (Array.isArray(parsed)) return parsed;
       return [];
-    } catch {
-      return [];
-    }
-  };
-
-  const handleScan = async (asset: Asset, overrideTool?: string) => {
-    const toolToUse = overrideTool || 'nmap';
-    setScanningId(asset.id);
-    try {
-      const res = await apiFetch('/api/v1/pentest/scan', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ 
-          target: asset.ip_address, 
-          tool: toolToUse,
-          arguments: '-F -O' 
-        })
-      });
-      const data = await res.json();
-      if (data.scan_id) {
-         setActiveScanId(data.scan_id);
-         setActiveScanResult(null);
-         setCmdHistory(prev => [{ time: new Date().toLocaleTimeString(), cmd: `/${toolToUse} ${asset.ip_address}`, status: 'Executing...' }, ...prev].slice(0, 5));
-      }
-      setScanningId(null);
-    } catch {
-      setScanningId(null);
-    }
-  };
-
-  // --- Command Center Logic ---
-  const filteredTools = SECURITY_TOOLS.filter(t => 
-    cmdInput.startsWith('/') ? t.id.includes(cmdInput.substring(1).toLowerCase().split(' ')[0]) : false
-  );
-
-  const handleCmdKeyDown = (e: React.KeyboardEvent) => {
-    if (!showSuggestions) {
-      if (e.key === 'Enter' && cmdInput.trim() !== '') {
-        executeCommand();
-      }
-      return;
-    }
-
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      setActiveSuggestion(prev => (prev < filteredTools.length - 1 ? prev + 1 : prev));
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setActiveSuggestion(prev => (prev > 0 ? prev - 1 : 0));
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      // If the user already typed a command with a space (e.g. "/nmap aceda.id.vn"), execute it
-      if (cmdInput.trim().split(' ').length > 1 && cmdInput.trim().split(' ')[1] !== '') {
-        executeCommand();
-      } else {
-        // Otherwise, autocomplete the selected tool
-        const tool = filteredTools[activeSuggestion];
-        if (tool) {
-          setCmdInput(`/${tool.id} `);
-          setShowSuggestions(false);
-        }
-      }
-    } else if (e.key === 'Escape') {
-      setShowSuggestions(false);
-    }
-  };
-
-  const handleCmdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setCmdInput(val);
-    if (val.startsWith('/')) {
-      setShowSuggestions(true);
-      setActiveSuggestion(0);
-    } else {
-      setShowSuggestions(false);
-    }
-  };
-
-  const executeCommand = async () => {
-    const parts = cmdInput.trim().split(' ');
-    const cmd = parts[0].substring(1); // remove '/'
-    const target = parts[1];
-
-    if (!cmd || !target) {
-      setCmdHistory(prev => [{ time: new Date().toLocaleTimeString(), cmd: cmdInput, status: 'Error: Missing target' }, ...prev].slice(0, 5));
-      return;
-    }
-
-    const toolExists = SECURITY_TOOLS.find(t => t.id === cmd);
-    if (!toolExists) {
-      setCmdHistory(prev => [{ time: new Date().toLocaleTimeString(), cmd: cmdInput, status: 'Error: Unknown tool' }, ...prev].slice(0, 5));
-      return;
-    }
-
-    setCmdHistory(prev => [{ time: new Date().toLocaleTimeString(), cmd: cmdInput, status: 'Executing...' }, ...prev].slice(0, 5));
-    setCmdInput('');
-    setShowSuggestions(false);
-
-    try {
-      const res = await apiFetch('/api/v1/pentest/scan', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ target: target, tool: cmd })
-      });
-      const data = await res.json();
-      if (data.scan_id) {
-         setActiveScanId(data.scan_id);
-         setActiveScanResult(null);
-      }
-    } catch {
-      setCmdHistory(prev => {
-        const newHist = [...prev];
-        newHist[0].status = 'Failed to execute';
-        return newHist;
-      });
-    }
+    } catch { return []; }
   };
 
   return (
     <div className="p-6 h-full flex flex-col space-y-6 animate-fade-in text-white">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold font-inter bg-gradient-to-r from-teal-400 to-cyan-500 bg-clip-text text-transparent">Asset Inventory & Command Center</h1>
+        <h1 className="text-3xl font-bold font-inter bg-gradient-to-r from-teal-400 to-cyan-500 bg-clip-text text-transparent">Asset Inventory</h1>
+        <span className="text-xs text-slate-500 bg-slate-800 border border-slate-700 px-3 py-1 rounded-full">Scanning module removed for performance</span>
       </div>
 
-      {/* Advanced Command Center */}
-      <div className="bg-slate-900/80 rounded-2xl border border-teal-500/30 p-4 shadow-[0_0_15px_rgba(20,184,166,0.15)] flex flex-col gap-3 relative z-20">
-        <div className="flex items-center gap-2 text-teal-400 font-mono text-sm mb-1">
-          <Terminal size={16} /> ACS Security Terminal
-        </div>
-        
-        <div className="relative">
-          <div className="flex items-center bg-black/50 border border-slate-700 rounded-lg p-1 focus-within:border-teal-500/50 focus-within:shadow-[0_0_10px_rgba(20,184,166,0.2)] transition-all">
-            <span className="text-teal-500 font-mono pl-3 pr-2 font-bold select-none">root@acs:~#</span>
-            <input 
-              ref={inputRef}
-              type="text"
-              value={cmdInput}
-              onChange={handleCmdChange}
-              onKeyDown={handleCmdKeyDown}
-              placeholder={useStore.getState().userRole === 'auditor' ? "Terminal disabled for auditors" : "Type / to see available tools (e.g., /nmap aceda.id.vn)"}
-              disabled={useStore.getState().userRole === 'auditor'}
-              className="flex-1 bg-transparent border-none text-slate-200 font-mono py-2 px-2 focus:outline-none placeholder:text-slate-600 disabled:opacity-50"
-              autoComplete="off"
-              spellCheck="false"
-            />
-            <button 
-              onClick={executeCommand}
-              disabled={useStore.getState().userRole === 'auditor'}
-              className="bg-teal-600/20 hover:bg-teal-600/40 text-teal-400 p-2 rounded-md transition-colors border border-teal-500/30 mr-1 disabled:opacity-50"
-            >
-              <Zap size={18} />
-            </button>
-          </div>
-
-          {/* Autocomplete Dropdown */}
-          {showSuggestions && cmdInput.startsWith('/') && filteredTools.length > 0 && (
-            <div className="absolute top-full left-0 mt-2 w-full max-w-2xl bg-slate-800 border border-slate-600 rounded-lg shadow-2xl overflow-hidden z-50">
-              <div className="px-3 py-2 bg-slate-900/80 text-xs text-slate-400 font-semibold uppercase tracking-wider border-b border-slate-700">
-                Available Tools ({filteredTools.length})
-              </div>
-              <div className="max-h-64 overflow-y-auto custom-scrollbar">
-                {filteredTools.map((tool, idx) => (
-                  <div 
-                    key={tool.id}
-                    onClick={() => {
-                      setCmdInput(`/${tool.id} `);
-                      setShowSuggestions(false);
-                      inputRef.current?.focus();
-                    }}
-                    className={`flex items-center gap-3 px-4 py-3 cursor-pointer border-b border-slate-700/50 last:border-none transition-colors ${
-                      activeSuggestion === idx ? 'bg-teal-900/40 border-l-2 border-l-teal-500' : 'hover:bg-slate-700/50 border-l-2 border-l-transparent'
-                    }`}
-                  >
-                    <span className="text-2xl">{tool.icon}</span>
-                    <div className="flex-1">
-                      <div className="flex items-baseline gap-2">
-                        <span className="font-mono text-teal-300 font-bold">/{tool.id}</span>
-                        <span className="text-slate-200 font-medium">{tool.name}</span>
-                      </div>
-                      <div className="text-xs text-slate-400 mt-0.5">{tool.desc}</div>
-                    </div>
-                    {activeSuggestion === idx && <span className="text-xs font-mono text-teal-500 bg-teal-500/10 px-2 py-1 rounded">Enter ↵</span>}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Command History mini-log */}
-        {cmdHistory.length > 0 && (
-          <div className="bg-black/40 rounded-lg p-2 font-mono text-xs border border-slate-800">
-            {cmdHistory.map((h, i) => (
-              <div key={i} className={`flex items-center gap-2 py-1 ${i === 0 ? 'text-slate-300 opacity-100' : 'text-slate-500 opacity-60'}`}>
-                <span className="text-slate-600">[{h.time}]</span>
-                <ChevronRight size={12} className="text-teal-700" />
-                <span className="text-teal-400">{h.cmd}</span>
-                <span className="text-slate-600">-</span>
-                <span className={`${h.status.includes('Success') ? 'text-emerald-400' : h.status.includes('Error') || h.status.includes('Failed') ? 'text-rose-400' : 'text-amber-400 animate-pulse'}`}>
-                  {h.status}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Live Scan Result Panel */}
-        {activeScanResult && (
-          <div className="bg-slate-900 border border-teal-500/30 rounded-lg p-4 mt-2 font-mono text-sm shadow-[0_0_10px_rgba(20,184,166,0.1)]">
-            <div className="flex justify-between items-center mb-4 border-b border-slate-800 pb-2">
-               <div className="flex items-center gap-2">
-                  <span className="text-teal-400 font-bold uppercase">{activeScanResult.tool}</span>
-                  <span className="text-slate-500">on</span>
-                  <span className="text-indigo-300 font-bold">{activeScanResult.target}</span>
-               </div>
-               <div className="flex items-center gap-2">
-                  {activeScanResult.status === 'running' || activeScanResult.status === 'queued' ? (
-                     <span className="flex items-center gap-2 text-amber-400"><Clock size={14} className="animate-spin" /> {activeScanResult.status}</span>
-                  ) : activeScanResult.status === 'completed' ? (
-                     <span className="text-emerald-400 font-bold flex items-center gap-1"><Activity size={14} /> Completed</span>
-                  ) : (
-                     <span className="text-rose-400 font-bold flex items-center gap-1"><ShieldAlert size={14} /> Failed</span>
-                  )}
-                  <button onClick={() => { setActiveScanId(null); setActiveScanResult(null); }} className="text-slate-500 hover:text-white ml-2 text-xs border border-slate-700 px-2 py-0.5 rounded transition-colors bg-slate-800">Close</button>
-               </div>
-            </div>
-            
-            {/* Detailed output */}
-            <div className="max-h-64 overflow-y-auto custom-scrollbar pr-2 space-y-4">
-               {activeScanResult.description ? (
-                  <div className="whitespace-pre-wrap text-slate-300 bg-black/30 p-3 rounded border border-slate-800/50">
-                     {activeScanResult.description.replace(/\*\*/g, '').replace(/`/g, '')}
-                  </div>
-               ) : activeScanResult.hosts ? (
-                  activeScanResult.hosts.map((host: any, idx: number) => (
-                    <div key={idx} className="bg-black/30 p-3 rounded border border-slate-800/50">
-                       <div className="text-emerald-300 mb-2">Host: {host.ip} ({host.state})</div>
-                       {host.os_matches && host.os_matches.length > 0 && (
-                          <div className="text-slate-400 mb-2 text-xs">OS: {host.os_matches[0].name} (Accuracy: {host.os_matches[0].accuracy}%)</div>
-                       )}
-                       {Object.keys(host.protocols || {}).map(proto => (
-                         <div key={proto} className="mt-2">
-                            <div className="text-teal-500 text-xs uppercase font-bold border-b border-slate-800 mb-1 inline-block pb-0.5">{proto} Ports</div>
-                            <table className="w-full text-left text-xs mt-1">
-                               <thead className="text-slate-500">
-                                 <tr><th className="py-1">Port</th><th className="py-1">State</th><th className="py-1">Service</th><th className="py-1">Version</th></tr>
-                               </thead>
-                               <tbody className="text-slate-300">
-                                 {host.protocols[proto].map((p: any) => (
-                                   <tr key={p.port} className="border-t border-slate-800/50">
-                                      <td className={`py-1 ${[22, 3389, 445].includes(p.port) ? 'text-rose-400 font-bold' : [80, 443].includes(p.port) ? 'text-amber-400' : 'text-teal-300'}`}>{p.port}</td>
-                                      <td className="py-1">{p.state}</td>
-                                      <td className="py-1">{p.name}</td>
-                                      <td className="py-1">{p.product} {p.version}</td>
-                                   </tr>
-                                 ))}
-                               </tbody>
-                            </table>
-                         </div>
-                       ))}
-                    </div>
-                  ))
-               ) : activeScanResult.error ? (
-                  <div className="text-rose-400 bg-rose-500/10 p-3 rounded border border-rose-500/20">{activeScanResult.error}</div>
-               ) : (
-                  <div className="text-slate-500 animate-pulse text-center py-4">Waiting for scan data...</div>
-               )}
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="bg-slate-900/50 rounded-2xl border border-slate-700 flex flex-col flex-1 backdrop-blur-md overflow-hidden z-10">
+      <div className="bg-slate-900/50 rounded-2xl border border-slate-700 flex flex-col flex-1 backdrop-blur-md overflow-hidden">
         <div className="overflow-auto flex-1 p-0">
           <table className="w-full text-left border-collapse">
             <thead className="bg-slate-900/80 text-slate-400 text-sm uppercase tracking-wider sticky top-0 z-10">
@@ -409,31 +76,23 @@ export const Assets = () => {
                 <th className="p-4 font-medium">Protection Profile</th>
                 <th className="p-4 font-medium"><Activity size={16} className="inline mr-2" /> Criticality</th>
                 <th className="p-4 font-medium"><ShieldAlert size={16} className="inline mr-2 text-rose-500" /> Vulnerabilities (CVEs)</th>
-                <th className="p-4 font-medium">Actions</th>
+                <th className="p-4 font-medium">WAF</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800/50 text-slate-300">
               {assets.map(asset => {
                 const cves = parseCVEs(asset.cves);
                 return (
-                  <tr key={asset.id} className="hover:bg-slate-800/30 transition-colors group">
+                  <tr key={asset.id} className="hover:bg-slate-800/30 transition-colors">
                     <td className="p-4 whitespace-nowrap font-medium text-indigo-300">{asset.hostname}</td>
                     <td className="p-4 whitespace-nowrap text-sm font-mono text-slate-400">{asset.ip_address}</td>
                     <td className="p-4 whitespace-nowrap">
-                      <div className="flex items-center gap-3">
-                        <span className={`px-2 py-1 rounded text-xs font-semibold flex items-center gap-1 ${
-                          asset.waf_enabled ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/50' : 'bg-slate-800 text-slate-400 border border-slate-700'
-                        }`}>
-                          {asset.waf_enabled ? <ShieldAlert size={12} className="text-indigo-400" /> : <ShieldAlert size={12} />}
-                          {asset.protection_profile || 'Standard'}
-                        </span>
-                        <button 
-                          onClick={() => toggleWaf(asset)}
-                          className={`w-8 h-4 rounded-full relative transition-colors ${asset.waf_enabled ? 'bg-indigo-500' : 'bg-slate-600'}`}
-                        >
-                          <span className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform ${asset.waf_enabled ? 'translate-x-4' : ''}`}></span>
-                        </button>
-                      </div>
+                      <span className={`px-2 py-1 rounded text-xs font-semibold flex items-center gap-1 w-fit ${
+                        asset.waf_enabled ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/50' : 'bg-slate-800 text-slate-400 border border-slate-700'
+                      }`}>
+                        <ShieldAlert size={12} className={asset.waf_enabled ? 'text-indigo-400' : ''} />
+                        {asset.protection_profile || 'Standard'}
+                      </span>
                     </td>
                     <td className="p-4 whitespace-nowrap">
                       <span className={`px-2 py-1 rounded text-xs font-semibold uppercase border ${
@@ -448,31 +107,23 @@ export const Assets = () => {
                       {cves.length > 0 ? (
                         <div className="flex flex-wrap gap-1">
                           {cves.map((cve: string) => (
-                            <span key={cve} className="px-2 py-0.5 rounded text-xs font-mono bg-rose-900/50 text-rose-300 border border-rose-800/50">
-                              {cve}
-                            </span>
+                            <span key={cve} className="px-2 py-0.5 rounded text-xs font-mono bg-rose-900/50 text-rose-300 border border-rose-800/50">{cve}</span>
                           ))}
                         </div>
-                      ) : (
-                        <span className="text-slate-500 text-sm">No known CVEs</span>
-                      )}
+                      ) : <span className="text-slate-500 text-sm">No known CVEs</span>}
                     </td>
-                    <td className="p-4">
+                    <td className="p-4 whitespace-nowrap">
                       <button 
-                        onClick={() => handleScan(asset)}
-                        disabled={scanningId === asset.id || useStore.getState().userRole === 'auditor'}
-                        className="bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/30 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1 disabled:opacity-50"
+                        onClick={() => toggleWaf(asset)}
+                        className={`w-8 h-4 rounded-full relative transition-colors ${asset.waf_enabled ? 'bg-indigo-500' : 'bg-slate-600'}`}
                       >
-                        {scanningId === asset.id ? <Clock size={14} className="animate-spin" /> : <Search size={14} />}
-                        {scanningId === asset.id ? 'Scanning...' : 'Scan'}
+                        <span className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform ${asset.waf_enabled ? 'translate-x-4' : ''}`}></span>
                       </button>
                     </td>
                   </tr>
                 );
               })}
-              {assets.length === 0 && (
-                <tr><td colSpan={6} className="p-8 text-center text-slate-500">No assets found.</td></tr>
-              )}
+              {assets.length === 0 && <tr><td colSpan={6} className="p-8 text-center text-slate-500">No assets found.</td></tr>}
             </tbody>
           </table>
         </div>
