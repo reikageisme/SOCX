@@ -48,14 +48,10 @@ def _image_name(container) -> str:
 
 
 def _list_on(host: str) -> List[Dict[str, Any]]:
-    client = docker_hosts.get_client(host)
-    if client is None:
-        return []
     try:
-        containers = client.containers.list(all=True)
+        containers = docker_hosts.call(host, lambda c: c.containers.list(all=True))
     except Exception as e:
         logger.warning(f"Listing containers on {host!r} failed: {e}")
-        docker_hosts.drop_client(host, str(e))
         return []
 
     out = []
@@ -105,11 +101,17 @@ def list_containers(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def _parse_container_logs(container, host: str, lines: int) -> List[Dict[str, Any]]:
-    """Return a list of {ts, host, container, message} entries for one container."""
-    name = container.name
+def _parse_container_logs(host: str, container_id: str, name: str, lines: int) -> List[Dict[str, Any]]:
+    """Return a list of {ts, host, container, message} entries for one container.
+
+    Addressed by id through the low-level API: a retry inside call() hands back
+    a brand new client, and a Container object bound to the discarded one would
+    keep talking to the dead transport.
+    """
     try:
-        raw = container.logs(tail=lines, timestamps=True).decode("utf-8", errors="replace")
+        raw = docker_hosts.call(
+            host, lambda c: c.api.logs(container_id, tail=lines, timestamps=True)
+        ).decode("utf-8", errors="replace")
     except Exception as e:  # a single bad container must not kill the whole view
         return [{"ts": None, "host": host, "container": name,
                  "message": f"[unable to read logs: {e}]"}]
@@ -130,14 +132,12 @@ def _parse_container_logs(container, host: str, lines: int) -> List[Dict[str, An
 
 
 def _logs_on(host: str, lines: int, running_only: bool, acs_only: bool) -> List[Dict[str, Any]]:
-    client = docker_hosts.get_client(host)
-    if client is None:
-        return [{"ts": None, "host": host, "container": "-",
-                 "message": f"[host unreachable: {docker_hosts.last_error(host) or 'not connected'}]"}]
     try:
-        containers = client.containers.list(all=not running_only)
+        containers = docker_hosts.call(host, lambda c: c.containers.list(all=not running_only))
+    except docker_hosts.DockerHostUnavailable as e:
+        return [{"ts": None, "host": host, "container": "-",
+                 "message": f"[host unreachable: {e}]"}]
     except Exception as e:
-        docker_hosts.drop_client(host, str(e))
         return [{"ts": None, "host": host, "container": "-", "message": f"[host error: {e}]"}]
 
     if acs_only:
@@ -145,10 +145,11 @@ def _logs_on(host: str, lines: int, running_only: bool, acs_only: bool) -> List[
     if not containers:
         return []
 
+    targets = [(c.id, c.name) for c in containers]
     entries: List[Dict[str, Any]] = []
-    workers = min(docker_hosts.concurrency_for(host), len(containers))
+    workers = min(docker_hosts.concurrency_for(host), len(targets))
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        for chunk in pool.map(lambda c: _parse_container_logs(c, host, lines), containers):
+        for chunk in pool.map(lambda t: _parse_container_logs(host, t[0], t[1], lines), targets):
             entries.extend(chunk)
     return entries
 
@@ -222,16 +223,9 @@ def get_container_logs(
     target = host or settings.DOCKER_LOCAL_NAME
     _resolve(target)  # validates the name
 
-    client = docker_hosts.get_client(target)
-    if client is None:
-        raise HTTPException(
-            status_code=502,
-            detail=f"Docker host '{target}' unreachable: {docker_hosts.last_error(target) or 'not connected'}",
-        )
-
     try:
-        container = client.containers.get(container_name)
-        entries = _parse_container_logs(container, target, lines)
+        container = docker_hosts.call(target, lambda c: c.containers.get(container_name))
+        entries = _parse_container_logs(target, container.id, container.name, lines)
         return {
             "status": "success",
             "host": target,
@@ -240,10 +234,11 @@ def get_container_logs(
             "entries": entries,
             "logs": "\n".join(f"{e['ts'] or '-'} {e['message']}" for e in entries),
         }
+    except docker_hosts.DockerHostUnavailable as e:
+        raise HTTPException(status_code=502, detail=f"Docker host '{target}' unreachable: {e}")
     except Exception as e:
         if e.__class__.__name__ == "NotFound":
             raise HTTPException(status_code=404, detail="Container not found")
-        docker_hosts.drop_client(target, str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 

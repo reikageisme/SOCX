@@ -154,6 +154,56 @@ def drop_client(name: str, error: str = "") -> None:
     _close(client)
 
 
+class DockerHostUnavailable(Exception):
+    """The host could not be dialed at all."""
+
+
+_TRANSIENT_MARKERS = (
+    "connection aborted",
+    "remotedisconnected",
+    "remote end closed",
+    "channelexception",
+    "socket is closed",
+    "ssh session not active",
+    "connection reset",
+    "broken pipe",
+    "eof",
+)
+
+
+def is_transient(exc: BaseException) -> bool:
+    """True for errors that mean the transport died, not that the call was bad."""
+    text = f"{exc}".lower()
+    return any(marker in text for marker in _TRANSIENT_MARKERS)
+
+
+def call(name: str, fn, attempts: int = 2):
+    """Run fn(client) against host `name`, re-dialing once on a dead transport.
+
+    Pooled SSH connections go stale without urllib3 noticing: the remote
+    `docker system dial-stdio` for that channel is already gone, so the first
+    request to reuse it fails with RemoteDisconnected. Every call made through
+    here is a read, so retrying on a fresh client is safe.
+    """
+    last: Optional[BaseException] = None
+    for attempt in range(max(1, attempts)):
+        client = get_client(name)
+        if client is None:
+            raise DockerHostUnavailable(last_error(name) or "not connected")
+        try:
+            return fn(client)
+        except Exception as e:
+            last = e
+            if attempt + 1 >= attempts or not is_transient(e):
+                drop_client(name, str(e))
+                raise
+            # No error mark: we want get_client() to re-dial immediately
+            # instead of parking the host for the cooldown window.
+            logger.info(f"Re-dialing {name!r} after a stale connection: {e}")
+            drop_client(name)
+    raise last  # pragma: no cover - loop always returns or raises
+
+
 def last_error(name: str) -> Optional[str]:
     with _lock:
         failure = _errors.get(name)
@@ -175,20 +225,10 @@ def host_status() -> List[Dict[str, Any]]:
         }
         if client is not None:
             try:
-                entry["containers"] = len(client.containers.list(all=True))
+                entry["containers"] = len(call(name, lambda c: c.containers.list(all=True)))
             except Exception as e:
-                # SSH channel errors are transient (the daemon was momentarily
-                # out of sessions); re-dial once before calling the host down.
-                drop_client(name)
-                retry = get_client(name)
-                try:
-                    if retry is None:
-                        raise e
-                    entry["containers"] = len(retry.containers.list(all=True))
-                except Exception as e2:
-                    entry["reachable"] = False
-                    entry["error"] = str(e2)
-                    drop_client(name, str(e2))
+                entry["reachable"] = False
+                entry["error"] = str(e)
         else:
             entry["error"] = last_error(name) or "not connected"
         out.append(entry)
