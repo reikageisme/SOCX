@@ -101,18 +101,24 @@ def get_client(name: str):
     if url is None:
         return None
 
+    client = None
     try:
         if url == LOCAL_URL:
             client = docker.from_env(timeout=settings.DOCKER_TIMEOUT)
         else:
+            # Every pooled connection holds an open SSH channel running
+            # `docker system dial-stdio`, and sshd caps concurrent channels at
+            # MaxSessions (10 by default). Keep the pool below that ceiling.
             client = docker.DockerClient(
                 base_url=url,
                 timeout=settings.DOCKER_TIMEOUT,
                 use_ssh_client=settings.DOCKER_SSH_USE_CLI,
+                max_pool_size=max(1, settings.DOCKER_SSH_CONCURRENCY) + 1,
             )
         client.ping()
     except Exception as e:
         logger.warning(f"Docker host {name!r} ({url}) unreachable: {e}")
+        _close(client)
         with _lock:
             _errors[name] = (str(e), time.time())
             _clients.pop(name, None)
@@ -124,12 +130,28 @@ def get_client(name: str):
     return client
 
 
+def _close(client) -> None:
+    """Close a client so its SSH transport (and every channel on it) goes away.
+
+    Dropping the reference is not enough: the remote sshd keeps counting those
+    channels against MaxSessions until the transport actually closes, so a
+    forgotten client permanently eats into the host's session budget.
+    """
+    if client is None:
+        return
+    try:
+        client.close()
+    except Exception as e:
+        logger.debug(f"Closing docker client failed: {e}")
+
+
 def drop_client(name: str, error: str = "") -> None:
     """Forget a client after an error so the next call re-dials."""
     with _lock:
-        _clients.pop(name, None)
+        client = _clients.pop(name, None)
         if error:
             _errors[name] = (error, time.time())
+    _close(client)
 
 
 def last_error(name: str) -> Optional[str]:

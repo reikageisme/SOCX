@@ -274,6 +274,11 @@ do thay vì làm hỏng cả view.
 
 - Host lỗi bị đánh dấu và **không dial lại trong 60 giây**, để một LXC chết không
   làm chậm mọi request.
+- Mỗi request tới daemon từ xa chiếm một SSH channel (`docker system dial-stdio`),
+  và sshd giới hạn `MaxSessions` (mặc định 10). Backend giữ số luồng song song ở
+  `DOCKER_SSH_CONCURRENCY` (mặc định 2) và cấp pool tương ứng. Nếu thấy
+  `ChannelException(2, 'Connect failed')`, session trên CT đích đã cạn — dọn
+  bằng `pct exec <id> -- systemctl restart ssh` rồi restart backend.
 - Kết nối SSH dùng `paramiko` (không cần cài `ssh` trong image). Muốn dùng binary
   `ssh` của hệ thống thì đặt `DOCKER_SSH_USE_CLI=true` và cài `openssh-client`
   vào image backend.
