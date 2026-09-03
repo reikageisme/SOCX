@@ -184,6 +184,7 @@ kết nối qua SSH.
 
 ```bash
 cd ~/SOCX
+mkdir -p ~/.ssh && chmod 700 ~/.ssh      # ssh client cần thư mục này
 mkdir -p backend/ssh
 ssh-keygen -t ed25519 -N '' -f backend/ssh/id_ed25519 -C "acs-backend@ct-105"
 chmod 600 backend/ssh/id_ed25519
@@ -193,13 +194,34 @@ Thư mục `backend/ssh/` đã được `.gitignore` — **không bao giờ comm
 
 ### 2. Cấp key cho từng LXC đích
 
-```bash
-ssh-copy-id -i backend/ssh/id_ed25519.pub root@192.168.1.101   # CT-101
-ssh-copy-id -i backend/ssh/id_ed25519.pub root@192.168.1.103   # CT-103
+Đừng dùng `ssh-copy-id`: LXC Debian/Ubuntu mặc định để
+`PermitRootLogin prohibit-password`, nên root bị từ chối khi đăng nhập bằng
+mật khẩu (`Permission denied (publickey,password)` dù mật khẩu đúng). Cài key
+thẳng từ **host Proxmox** bằng `pct exec`, không cần đăng nhập SSH lần nào:
 
-# Kiểm tra: phải in ra danh sách container của CT-101
-ssh -i backend/ssh/id_ed25519 root@192.168.1.101 docker ps
+```bash
+# TRÊN CT-105 — lấy public key
+cat ~/SOCX/backend/ssh/id_ed25519.pub
 ```
+
+```bash
+# TRÊN HOST PROXMOX (shell của node pve)
+KEY='ssh-ed25519 AAAA... acs-backend@ct-105'   # dán nguyên dòng vừa cat
+
+for id in 101 103; do
+  pct exec $id -- sh -c "mkdir -p /root/.ssh && chmod 700 /root/.ssh && \
+    echo '$KEY' >> /root/.ssh/authorized_keys && chmod 600 /root/.ssh/authorized_keys"
+done
+```
+
+```bash
+# TRÊN CT-105 — kiểm tra, phải in ra danh sách container của từng CT
+ssh -i ~/SOCX/backend/ssh/id_ed25519 root@192.168.1.101 docker ps
+ssh -i ~/SOCX/backend/ssh/id_ed25519 root@192.168.1.103 docker ps
+```
+
+`prohibit-password` vẫn cho phép đăng nhập bằng key nên **không cần** đổi
+`PermitRootLogin` thành `yes`. Chỉ khi giá trị là `no` mới phải sửa sshd.
 
 > Khuyến nghị: dùng user riêng thuộc group `docker` thay cho `root`, và giới hạn
 > key bằng `from="<ip-ct-105>"` trong `authorized_keys` của máy đích. Quyền đọc
