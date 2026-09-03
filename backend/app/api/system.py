@@ -35,27 +35,44 @@ def list_hosts(current_user: str = Depends(get_current_user)):
     return {"status": "success", "hosts": docker_hosts.host_status()}
 
 
+def _image_name(container) -> str:
+    """Image reference taken from data already fetched with the container.
+
+    Never touch `container.image`: that triggers an extra inspect call which
+    404s for containers whose image was untagged or deleted, which would
+    otherwise take down the listing for the whole host.
+    """
+    attrs = getattr(container, "attrs", None) or {}
+    config = attrs.get("Config") or {}
+    return config.get("Image") or attrs.get("Image") or ""
+
+
 def _list_on(host: str) -> List[Dict[str, Any]]:
     client = docker_hosts.get_client(host)
     if client is None:
         return []
     try:
-        out = []
-        for c in client.containers.list(all=True):
+        containers = client.containers.list(all=True)
+    except Exception as e:
+        logger.warning(f"Listing containers on {host!r} failed: {e}")
+        docker_hosts.drop_client(host, str(e))
+        return []
+
+    out = []
+    for c in containers:
+        try:
             out.append({
                 "id": c.short_id,
                 "name": c.name,
                 "host": host,
                 "key": f"{host}::{c.name}",
                 "status": c.status,
-                "image": c.image.tags[0] if c.image.tags else c.image.id,
+                "image": _image_name(c),
                 "is_acs": c.name.startswith("acs-"),
             })
-        return out
-    except Exception as e:
-        logger.warning(f"Listing containers on {host!r} failed: {e}")
-        docker_hosts.drop_client(host, str(e))
-        return []
+        except Exception as e:  # one odd container must not hide the rest
+            logger.warning(f"Skipping container on {host!r}: {e}")
+    return out
 
 
 @router.get("/containers")

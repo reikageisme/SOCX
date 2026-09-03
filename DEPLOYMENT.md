@@ -227,7 +227,17 @@ ssh -i ~/SOCX/backend/ssh/id_ed25519 root@192.168.1.103 docker ps
 > key bằng `from="<ip-ct-105>"` trong `authorized_keys` của máy đích. Quyền đọc
 > Docker socket tương đương quyền root trên máy đó.
 
-### 3. Khai báo host trong `backend/.env`
+### 3. Chép `known_hosts` vào thư mục được mount
+
+```bash
+cp ~/.ssh/known_hosts ~/SOCX/backend/ssh/known_hosts
+```
+
+Container mount `backend/ssh/` vào `/root/.ssh`, nên `known_hosts` ở home của
+CT-105 không tới được backend. Thiếu bước này backend báo
+`Server '192.168.1.10x' not found in known_hosts`.
+
+### 4. Khai báo host trong `backend/.env`
 
 ```env
 DOCKER_LOCAL_NAME=ct-105
@@ -238,14 +248,14 @@ DOCKER_TIMEOUT=15
 Cú pháp: `tên=ssh://user@host[:port]`, phân tách bằng dấu phẩy. Host local luôn
 có sẵn và lấy tên từ `DOCKER_LOCAL_NAME`.
 
-### 4. Deploy lại
+### 5. Deploy lại
 
 ```bash
 docker compose -f docker-compose.prod.yml up -d --build backend frontend
 docker compose -f docker-compose.prod.yml restart nginx   # nginx cache IP upstream
 ```
 
-### 5. Kiểm tra
+### 6. Kiểm tra
 
 `GET /api/v1/system/hosts` trả về trạng thái từng host:
 
@@ -267,5 +277,11 @@ do thay vì làm hỏng cả view.
 - Kết nối SSH dùng `paramiko` (không cần cài `ssh` trong image). Muốn dùng binary
   `ssh` của hệ thống thì đặt `DOCKER_SSH_USE_CLI=true` và cài `openssh-client`
   vào image backend.
-- Host key lạ được chấp nhận kèm cảnh báo (`WarningPolicy`). Muốn chặt hơn thì
-  mount sẵn `known_hosts` vào `backend/ssh/`.
+- **Bắt buộc có `known_hosts`**: docker-py 7.x dùng `RejectPolicy`, host key lạ
+  bị từ chối thẳng (`Server '...' not found in known_hosts`). Sau khi `ssh` thủ
+  công một lần cho từng CT, chép file sang thư mục được mount:
+
+  ```bash
+  cp ~/.ssh/known_hosts ~/SOCX/backend/ssh/known_hosts
+  docker compose -f docker-compose.prod.yml restart backend
+  ```
