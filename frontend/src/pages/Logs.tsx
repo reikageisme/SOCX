@@ -16,18 +16,31 @@ interface AuditLog {
 interface Container {
   id: string;
   name: string;
+  host: string;
+  key: string;
   status: string;
   image: string;
   is_acs?: boolean;
 }
 
+interface DockerHost {
+  name: string;
+  url: string;
+  kind: string;
+  reachable: boolean;
+  containers: number;
+  error: string | null;
+}
+
 interface LogEntry {
   ts: string | null;
+  host?: string;
   container: string;
   message: string;
 }
 
 const ALL_CONTAINERS = '__all__';
+const ALL_HOSTS = 'all';
 
 // Stable colour per container name so each source is easy to track in the merged view
 const CONTAINER_COLORS = [
@@ -49,6 +62,7 @@ export const LogsPage: React.FC = () => {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
   // Container Logs State
+  const [selectedHost, setSelectedHost] = useState<string>(ALL_HOSTS);
   const [selectedContainer, setSelectedContainer] = useState<string>(ALL_CONTAINERS);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [logFilter, setLogFilter] = useState('');
@@ -72,10 +86,22 @@ export const LogsPage: React.FC = () => {
     refetchInterval: activeTab === 'audit' ? 10000 : false
   });
 
-  const { data: containersData } = useQuery({
-    queryKey: ['containers'],
+  const { data: hostsData } = useQuery({
+    queryKey: ['docker-hosts'],
     queryFn: async () => {
-      const res = await apiFetch('/api/v1/system/containers', {
+      const res = await apiFetch('/api/v1/system/hosts', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return res.json();
+    },
+    enabled: activeTab === 'containers',
+    refetchInterval: activeTab === 'containers' ? 30000 : false
+  });
+
+  const { data: containersData } = useQuery({
+    queryKey: ['containers', selectedHost],
+    queryFn: async () => {
+      const res = await apiFetch(`/api/v1/system/containers?host=${selectedHost}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       return res.json();
@@ -84,13 +110,15 @@ export const LogsPage: React.FC = () => {
   });
 
   const isAggregate = selectedContainer === ALL_CONTAINERS;
+  // A single-container selection is encoded as "<host>::<name>"
+  const [pickedHost, pickedName] = isAggregate ? ['', ''] : selectedContainer.split('::');
 
   const { data: containerLogsData, isLoading: isLoadingContainerLogs } = useQuery({
-    queryKey: ['container-logs', selectedContainer, runningOnly],
+    queryKey: ['container-logs', selectedHost, selectedContainer, runningOnly],
     queryFn: async () => {
       const url = isAggregate
-        ? `/api/v1/system/containers/logs/all?lines=200&max_lines=2000&running_only=${runningOnly}`
-        : `/api/v1/system/containers/${selectedContainer}/logs?lines=500`;
+        ? `/api/v1/system/containers/logs/all?lines=200&max_lines=2000&running_only=${runningOnly}&host=${selectedHost}`
+        : `/api/v1/system/containers/${pickedName}/logs?lines=500&host=${pickedHost}`;
       const res = await apiFetch(url, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -99,6 +127,10 @@ export const LogsPage: React.FC = () => {
     enabled: activeTab === 'containers' && !!selectedContainer,
     refetchInterval: (activeTab === 'containers' && autoRefresh) ? 5000 : false
   });
+
+  const hosts: DockerHost[] = hostsData?.hosts || [];
+  const downHosts = hosts.filter((h) => !h.reachable);
+  const multiHost = isAggregate && selectedHost === ALL_HOSTS && hosts.length > 1;
 
   // Normalise both shapes into a single list of entries for rendering
   const logEntries: LogEntry[] = React.useMemo(() => {
@@ -109,7 +141,8 @@ export const LogsPage: React.FC = () => {
       const m = line.match(/^(\d{4}-\d{2}-\d{2}T\S+)\s?(.*)$/);
       return {
         ts: m ? m[1] : null,
-        container: selectedContainer,
+        host: containerLogsData.host,
+        container: containerLogsData.container || selectedContainer,
         message: m ? m[2] : line,
       };
     });
@@ -118,19 +151,21 @@ export const LogsPage: React.FC = () => {
   const visibleEntries = logFilter.trim()
     ? logEntries.filter((e) => {
         const q = logFilter.toLowerCase();
-        return e.message.toLowerCase().includes(q) || e.container.toLowerCase().includes(q);
+        return e.message.toLowerCase().includes(q)
+          || e.container.toLowerCase().includes(q)
+          || (e.host || '').toLowerCase().includes(q);
       })
     : logEntries;
 
   const downloadContainerLogs = () => {
     const text = visibleEntries
-      .map((e) => `${e.ts || '-'} ${e.container} | ${e.message}`)
+      .map((e) => `${e.ts || '-'} ${e.host ? e.host + '/' : ''}${e.container} | ${e.message}`)
       .join('\n');
     const blob = new Blob([text], { type: 'text/plain' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `docker_logs_${isAggregate ? 'all' : selectedContainer}_${new Date().toISOString()}.log`;
+    a.download = `docker_logs_${isAggregate ? selectedHost : `${pickedHost}_${pickedName}`}_${new Date().toISOString()}.log`;
     a.click();
     window.URL.revokeObjectURL(url);
   };
@@ -329,7 +364,21 @@ export const LogsPage: React.FC = () => {
             {/* Container Selector Toolbar */}
             <div className="p-3 border-b border-slate-800 flex justify-between items-center bg-slate-900/40">
               <div className="flex items-center gap-3">
-                <span className="text-sm font-medium text-slate-400">Select Container:</span>
+                <span className="text-sm font-medium text-slate-400">Host:</span>
+                <select
+                  value={selectedHost}
+                  onChange={(e) => { setSelectedHost(e.target.value); setSelectedContainer(ALL_CONTAINERS); }}
+                  className="bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded-lg focus:ring-teal-500 focus:border-teal-500 block p-2 outline-none"
+                >
+                  <option value={ALL_HOSTS}>All hosts ({hosts.length})</option>
+                  {hosts.map((h) => (
+                    <option key={h.name} value={h.name}>
+                      {h.reachable ? '' : '⚠ '}{h.name} ({h.containers})
+                    </option>
+                  ))}
+                </select>
+
+                <span className="text-sm font-medium text-slate-400">Container:</span>
                 <select 
                   value={selectedContainer}
                   onChange={(e) => setSelectedContainer(e.target.value)}
@@ -338,15 +387,11 @@ export const LogsPage: React.FC = () => {
                   <option value={ALL_CONTAINERS}>
                     ★ All containers ({containersData?.containers?.length || 0})
                   </option>
-                  {containersData?.containers?.filter((c: Container) => c.is_acs !== false).map((c: Container) => (
-                    <option key={c.id} value={c.name}>{c.name} ({c.status})</option>
+                  {containersData?.containers?.map((c: Container) => (
+                    <option key={c.key} value={c.key}>
+                      {selectedHost === ALL_HOSTS ? `${c.host}/` : ''}{c.name} ({c.status})
+                    </option>
                   ))}
-                  {containersData?.containers?.filter((c: Container) => c.is_acs === false).map((c: Container) => (
-                    <option key={c.id} value={c.name}>{c.name} ({c.status})</option>
-                  ))}
-                  {!containersData?.containers?.length && (
-                    <option value="acs-backend">acs-backend (fallback)</option>
-                  )}
                 </select>
 
                 <div className="relative">
@@ -395,6 +440,16 @@ export const LogsPage: React.FC = () => {
               </div>
             </div>
 
+            {downHosts.length > 0 && (
+              <div className="px-4 py-2 bg-amber-950/30 border-b border-amber-900/50 text-amber-300 text-xs font-mono flex items-start gap-2">
+                <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                <span>
+                  Không kết nối được {downHosts.length} host:{' '}
+                  {downHosts.map((h) => `${h.name} (${h.error || 'unknown'})`).join(' · ')}
+                </span>
+              </div>
+            )}
+
             {/* Terminal View */}
             <div className="flex-1 p-4 overflow-hidden relative">
               {isLoadingContainerLogs && !containerLogsData ? (
@@ -415,8 +470,13 @@ export const LogsPage: React.FC = () => {
                     : visibleEntries.map((e, i) => (
                         <div key={i} className="hover:bg-slate-800/40">
                           <span className="text-slate-600">{e.ts ? e.ts.replace('T', ' ').slice(0, 23) : '-'}</span>
+                          {multiHost && e.host && (
+                            <span className={`${colorFor(e.host)} font-semibold`}> {e.host}/</span>
+                          )}
                           {isAggregate && (
-                            <span className={`${colorFor(e.container)} font-semibold`}> {e.container}</span>
+                            <span className={`${colorFor(e.container)} font-semibold`}>
+                              {multiHost && e.host ? '' : ' '}{e.container}
+                            </span>
                           )}
                           <span className="text-slate-600"> | </span>
                           <span>{e.message}</span>

@@ -23,6 +23,14 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440 # 24 hours
 
+    # Docker hosts reachable from the SOC.
+    # Local daemon is always present; remote LXC containers are reached over SSH:
+    #   DOCKER_HOSTS=ct-101=ssh://root@192.168.1.101,ct-103=ssh://root@192.168.1.103
+    DOCKER_HOSTS: str = ""
+    DOCKER_LOCAL_NAME: str = "local"
+    DOCKER_TIMEOUT: int = 15          # seconds per Docker API call
+    DOCKER_SSH_USE_CLI: bool = False  # True = shell out to the ssh binary instead of paramiko
+
     # Mock mode for local testing without real Proxmox
     MOCK_PROXMOX: bool = False
     INTERNAL_API_KEY: str = "aegis-dev-key"

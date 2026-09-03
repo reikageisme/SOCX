@@ -172,3 +172,78 @@ python3 /usr/local/bin/aegis-sensor-agent.py --once --dry-run
 | `GET /api/v1/sensors/history?minutes=180` | JWT | Chuỗi thời gian (ghi mỗi 60s, giữ 7 ngày) |
 | `GET /api/v1/sensors/policy` | JWT | Đọc chính sách |
 | `PUT /api/v1/sensors/policy` | JWT (quản trị) | Đổi chế độ và ngưỡng |
+
+## Thu thập Docker log từ nhiều LXC (CT-101, CT-103, ...)
+
+Trang **Logs → Container Logs** đọc log Docker qua chính Docker API, không qua
+Proxmox (Proxmox API không có endpoint đọc log bên trong LXC). Daemon của
+LXC đang chạy backend được thấy qua `/var/run/docker.sock`; các LXC khác được
+kết nối qua SSH.
+
+### 1. Sinh SSH key trên LXC chạy backend (CT-105)
+
+```bash
+cd ~/SOCX
+mkdir -p backend/ssh
+ssh-keygen -t ed25519 -N '' -f backend/ssh/id_ed25519 -C "acs-backend@ct-105"
+chmod 600 backend/ssh/id_ed25519
+```
+
+Thư mục `backend/ssh/` đã được `.gitignore` — **không bao giờ commit private key**.
+
+### 2. Cấp key cho từng LXC đích
+
+```bash
+ssh-copy-id -i backend/ssh/id_ed25519.pub root@192.168.1.101   # CT-101
+ssh-copy-id -i backend/ssh/id_ed25519.pub root@192.168.1.103   # CT-103
+
+# Kiểm tra: phải in ra danh sách container của CT-101
+ssh -i backend/ssh/id_ed25519 root@192.168.1.101 docker ps
+```
+
+> Khuyến nghị: dùng user riêng thuộc group `docker` thay cho `root`, và giới hạn
+> key bằng `from="<ip-ct-105>"` trong `authorized_keys` của máy đích. Quyền đọc
+> Docker socket tương đương quyền root trên máy đó.
+
+### 3. Khai báo host trong `backend/.env`
+
+```env
+DOCKER_LOCAL_NAME=ct-105
+DOCKER_HOSTS=ct-101=ssh://root@192.168.1.101,ct-103=ssh://root@192.168.1.103
+DOCKER_TIMEOUT=15
+```
+
+Cú pháp: `tên=ssh://user@host[:port]`, phân tách bằng dấu phẩy. Host local luôn
+có sẵn và lấy tên từ `DOCKER_LOCAL_NAME`.
+
+### 4. Deploy lại
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --build backend frontend
+docker compose -f docker-compose.prod.yml restart nginx   # nginx cache IP upstream
+```
+
+### 5. Kiểm tra
+
+`GET /api/v1/system/hosts` trả về trạng thái từng host:
+
+```json
+{"status":"success","hosts":[
+  {"name":"ct-105","kind":"local","reachable":true,"containers":5,"error":null},
+  {"name":"ct-101","kind":"ssh","reachable":true,"containers":3,"error":null}
+]}
+```
+
+Trên UI: dropdown **Host** chọn `All hosts` để xem log gộp của mọi LXC, mỗi dòng
+có tiền tố `host/container`. Host không kết nối được sẽ hiện banner vàng kèm lý
+do thay vì làm hỏng cả view.
+
+### Ghi chú vận hành
+
+- Host lỗi bị đánh dấu và **không dial lại trong 60 giây**, để một LXC chết không
+  làm chậm mọi request.
+- Kết nối SSH dùng `paramiko` (không cần cài `ssh` trong image). Muốn dùng binary
+  `ssh` của hệ thống thì đặt `DOCKER_SSH_USE_CLI=true` và cài `openssh-client`
+  vào image backend.
+- Host key lạ được chấp nhận kèm cảnh báo (`WarningPolicy`). Muốn chặt hơn thì
+  mount sẵn `known_hosts` vào `backend/ssh/`.

@@ -18,6 +18,8 @@ services:
     volumes:
       - ./backend/data:/app/data
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      # SSH key used to reach the Docker daemon of other LXC (CT-101, CT-103, ...)
+      - ./backend/ssh:/root/.ssh:ro
     depends_on:
       - redis
       - clickhouse
