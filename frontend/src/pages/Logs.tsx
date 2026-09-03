@@ -18,7 +18,27 @@ interface Container {
   name: string;
   status: string;
   image: string;
+  is_acs?: boolean;
 }
+
+interface LogEntry {
+  ts: string | null;
+  container: string;
+  message: string;
+}
+
+const ALL_CONTAINERS = '__all__';
+
+// Stable colour per container name so each source is easy to track in the merged view
+const CONTAINER_COLORS = [
+  'text-teal-400', 'text-sky-400', 'text-amber-400', 'text-purple-400',
+  'text-pink-400', 'text-lime-400', 'text-orange-400', 'text-indigo-400',
+];
+const colorFor = (name: string) => {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return CONTAINER_COLORS[h % CONTAINER_COLORS.length];
+};
 
 export const LogsPage: React.FC = () => {
   const token = useStore((state) => state.token);
@@ -29,8 +49,10 @@ export const LogsPage: React.FC = () => {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
   // Container Logs State
-  const [selectedContainer, setSelectedContainer] = useState<string>('acs-backend');
+  const [selectedContainer, setSelectedContainer] = useState<string>(ALL_CONTAINERS);
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [logFilter, setLogFilter] = useState('');
+  const [runningOnly, setRunningOnly] = useState(true);
   const terminalRef = useRef<HTMLPreElement>(null);
 
   // Hunt State
@@ -61,10 +83,15 @@ export const LogsPage: React.FC = () => {
     enabled: activeTab === 'containers'
   });
 
+  const isAggregate = selectedContainer === ALL_CONTAINERS;
+
   const { data: containerLogsData, isLoading: isLoadingContainerLogs } = useQuery({
-    queryKey: ['container-logs', selectedContainer],
+    queryKey: ['container-logs', selectedContainer, runningOnly],
     queryFn: async () => {
-      const res = await apiFetch(`/api/v1/system/containers/${selectedContainer}/logs?lines=500`, {
+      const url = isAggregate
+        ? `/api/v1/system/containers/logs/all?lines=200&max_lines=2000&running_only=${runningOnly}`
+        : `/api/v1/system/containers/${selectedContainer}/logs?lines=500`;
+      const res = await apiFetch(url, {
         headers: { Authorization: `Bearer ${token}` }
       });
       return res.json();
@@ -72,6 +99,41 @@ export const LogsPage: React.FC = () => {
     enabled: activeTab === 'containers' && !!selectedContainer,
     refetchInterval: (activeTab === 'containers' && autoRefresh) ? 5000 : false
   });
+
+  // Normalise both shapes into a single list of entries for rendering
+  const logEntries: LogEntry[] = React.useMemo(() => {
+    if (!containerLogsData || containerLogsData.status === 'error') return [];
+    if (containerLogsData.entries) return containerLogsData.entries as LogEntry[];
+    const raw: string = containerLogsData.logs || '';
+    return raw.split('\n').filter(Boolean).map((line) => {
+      const m = line.match(/^(\d{4}-\d{2}-\d{2}T\S+)\s?(.*)$/);
+      return {
+        ts: m ? m[1] : null,
+        container: selectedContainer,
+        message: m ? m[2] : line,
+      };
+    });
+  }, [containerLogsData, selectedContainer]);
+
+  const visibleEntries = logFilter.trim()
+    ? logEntries.filter((e) => {
+        const q = logFilter.toLowerCase();
+        return e.message.toLowerCase().includes(q) || e.container.toLowerCase().includes(q);
+      })
+    : logEntries;
+
+  const downloadContainerLogs = () => {
+    const text = visibleEntries
+      .map((e) => `${e.ts || '-'} ${e.container} | ${e.message}`)
+      .join('\n');
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `docker_logs_${isAggregate ? 'all' : selectedContainer}_${new Date().toISOString()}.log`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
 
   // Auto scroll terminal to bottom
   useEffect(() => {
@@ -273,16 +335,47 @@ export const LogsPage: React.FC = () => {
                   onChange={(e) => setSelectedContainer(e.target.value)}
                   className="bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded-lg focus:ring-teal-500 focus:border-teal-500 block p-2 outline-none"
                 >
-                  {containersData?.containers?.map((c: Container) => (
+                  <option value={ALL_CONTAINERS}>
+                    ★ All containers ({containersData?.containers?.length || 0})
+                  </option>
+                  {containersData?.containers?.filter((c: Container) => c.is_acs !== false).map((c: Container) => (
+                    <option key={c.id} value={c.name}>{c.name} ({c.status})</option>
+                  ))}
+                  {containersData?.containers?.filter((c: Container) => c.is_acs === false).map((c: Container) => (
                     <option key={c.id} value={c.name}>{c.name} ({c.status})</option>
                   ))}
                   {!containersData?.containers?.length && (
                     <option value="acs-backend">acs-backend (fallback)</option>
                   )}
                 </select>
+
+                <div className="relative">
+                  <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                  <input
+                    type="text"
+                    value={logFilter}
+                    onChange={(e) => setLogFilter(e.target.value)}
+                    placeholder="Filter log lines..."
+                    className="bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded-lg pl-8 pr-3 py-2 w-64 outline-none focus:border-teal-500"
+                  />
+                </div>
               </div>
               
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-4">
+                <span className="text-xs text-slate-500 font-mono">
+                  {visibleEntries.length}{logFilter ? ` / ${logEntries.length}` : ''} lines
+                </span>
+                {isAggregate && (
+                  <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-400 hover:text-slate-300">
+                    <input 
+                      type="checkbox" 
+                      checked={runningOnly} 
+                      onChange={(e) => setRunningOnly(e.target.checked)}
+                      className="rounded bg-slate-800 border-slate-600 text-teal-500 focus:ring-teal-500"
+                    />
+                    Running only
+                  </label>
+                )}
                 <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-400 hover:text-slate-300">
                   <input 
                     type="checkbox" 
@@ -292,6 +385,13 @@ export const LogsPage: React.FC = () => {
                   />
                   Auto-refresh (5s)
                 </label>
+                <button
+                  onClick={downloadContainerLogs}
+                  disabled={!visibleEntries.length}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-sm text-slate-300 transition-colors"
+                >
+                  <Download size={14} /> Export
+                </button>
               </div>
             </div>
 
@@ -310,7 +410,18 @@ export const LogsPage: React.FC = () => {
                   ref={terminalRef}
                   className="h-full overflow-y-auto font-mono text-[13px] leading-relaxed text-slate-300 whitespace-pre-wrap break-all custom-scrollbar pb-10"
                 >
-                  {containerLogsData?.logs || "No logs available for this container."}
+                  {visibleEntries.length === 0
+                    ? (logFilter ? "No lines match the filter." : "No logs available.")
+                    : visibleEntries.map((e, i) => (
+                        <div key={i} className="hover:bg-slate-800/40">
+                          <span className="text-slate-600">{e.ts ? e.ts.replace('T', ' ').slice(0, 23) : '-'}</span>
+                          {isAggregate && (
+                            <span className={`${colorFor(e.container)} font-semibold`}> {e.container}</span>
+                          )}
+                          <span className="text-slate-600"> | </span>
+                          <span>{e.message}</span>
+                        </div>
+                      ))}
                 </pre>
               )}
             </div>
