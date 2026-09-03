@@ -64,6 +64,22 @@ def resolve_hosts(host: Optional[str]) -> Dict[str, str]:
     return {host: hosts[host]}
 
 
+def is_remote(name: str) -> bool:
+    """True when the host is reached over SSH rather than the local socket."""
+    return configured_hosts().get(name, LOCAL_URL) != LOCAL_URL
+
+
+def concurrency_for(name: str) -> int:
+    """How many parallel Docker calls one host tolerates.
+
+    Every call to a remote daemon rides its own SSH channel, and sshd caps
+    those at MaxSessions (10 by default), so remote hosts get a small budget.
+    """
+    if is_remote(name):
+        return max(1, settings.DOCKER_SSH_CONCURRENCY)
+    return max(1, settings.DOCKER_LOCAL_CONCURRENCY)
+
+
 def get_client(name: str):
     """Return a cached Docker client for `name`, or None if it is unreachable.
 
@@ -139,9 +155,18 @@ def host_status() -> List[Dict[str, Any]]:
             try:
                 entry["containers"] = len(client.containers.list(all=True))
             except Exception as e:
-                entry["reachable"] = False
-                entry["error"] = str(e)
-                drop_client(name, str(e))
+                # SSH channel errors are transient (the daemon was momentarily
+                # out of sessions); re-dial once before calling the host down.
+                drop_client(name)
+                retry = get_client(name)
+                try:
+                    if retry is None:
+                        raise e
+                    entry["containers"] = len(retry.containers.list(all=True))
+                except Exception as e2:
+                    entry["reachable"] = False
+                    entry["error"] = str(e2)
+                    drop_client(name, str(e2))
         else:
             entry["error"] = last_error(name) or "not connected"
         out.append(entry)

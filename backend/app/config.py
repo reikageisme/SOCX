@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     DOCKER_LOCAL_NAME: str = "local"
     DOCKER_TIMEOUT: int = 15          # seconds per Docker API call
     DOCKER_SSH_USE_CLI: bool = False  # True = shell out to the ssh binary instead of paramiko
+    # Each remote log read opens its own SSH channel; sshd allows MaxSessions (10
+    # by default), so stay well under it or the daemon rejects new channels.
+    DOCKER_SSH_CONCURRENCY: int = 2
+    DOCKER_LOCAL_CONCURRENCY: int = 8
 
     # Mock mode for local testing without real Proxmox
     MOCK_PROXMOX: bool = False

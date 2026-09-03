@@ -146,7 +146,8 @@ def _logs_on(host: str, lines: int, running_only: bool, acs_only: bool) -> List[
         return []
 
     entries: List[Dict[str, Any]] = []
-    with ThreadPoolExecutor(max_workers=min(8, len(containers))) as pool:
+    workers = min(docker_hosts.concurrency_for(host), len(containers))
+    with ThreadPoolExecutor(max_workers=workers) as pool:
         for chunk in pool.map(lambda c: _parse_container_logs(c, host, lines), containers):
             entries.extend(chunk)
     return entries
